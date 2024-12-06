@@ -13,7 +13,6 @@ import FirecrawlApp, {
   type CrawlParams,
   type FirecrawlDocument,
 } from "@mendable/firecrawl-js";
-import { AxiosResponse } from "axios";
 
 // Tool definitions
 const SCRAPE_TOOL: Tool = {
@@ -489,7 +488,7 @@ const RATE_LIMIT = {
   waitTime: 25000 // 25 seconds in milliseconds
 };
 
-let requestCount = {
+const requestCount = {
   minute: 0,
   lastReset: Date.now(),
   nextAllowedTime: Date.now()
