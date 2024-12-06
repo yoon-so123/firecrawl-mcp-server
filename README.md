@@ -7,9 +7,9 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 - **JavaScript Rendering**: Extract content from JavaScript-heavy websites
 - **Mobile/Desktop Views**: Support for different viewport configurations
 - **Smart Rate Limiting**: Built-in rate limit handling
-- **Multiple Formats**: Support for HTML, Markdown, and raw text extraction
+- **Multiple Formats**: Support for HTML, Markdown, screenshots, and raw text extraction
 - **Batch Processing**: Efficient handling of multiple URLs
-- **PDF Support**: Extract content from PDF files
+- **Content Filtering**: Include or exclude specific HTML tags
 
 ## Tools
 
@@ -19,21 +19,24 @@ Scrapes content from a single URL with customizable options.
 
 - Inputs:
   - `url` (string): Target URL to scrape
-  - `formats` (array): Output formats (`markdown`, `html`, `rawHtml`)
+  - `formats` (array): Output formats (`markdown`, `html`, `rawHtml`, `screenshot`, `links`, `screenshot@fullPage`, `extract`)
   - `waitFor` (number, optional): Wait time in milliseconds
   - `onlyMainContent` (boolean, optional): Extract main content only
+  - `includeTags` (array, optional): HTML tags to specifically include
+  - `excludeTags` (array, optional): HTML tags to exclude
   - `mobile` (boolean, optional): Use mobile viewport
   - `skipTlsVerification` (boolean, optional): Skip TLS verification
 
-### fire_crawl_batch_scrape
+### fire_crawl_batch
 
 Initiates a batch scraping job for multiple URLs.
 
 - Inputs:
   - `urls` (array): List of URLs to scrape
-  - `options` (object): Scraping options (same as single scrape)
+  - `formats` (array): Output formats (same as single scrape)
+  - Other options same as `fire_crawl_scrape`
 
-### fire_crawl_check_batch_status
+### fire_crawl_status
 
 Checks the status of a batch scraping job.
 
@@ -43,7 +46,7 @@ Checks the status of a batch scraping job.
 ## Installation
 
 ```bash
-npm install @vrknetha/mcp-server-firecrawl
+npm install mcp-server-firecrawl
 ```
 
 ## Configuration
@@ -63,7 +66,7 @@ Add this to your `claude_desktop_config.json`:
   "mcpServers": {
     "firecrawl": {
       "command": "npx",
-      "args": ["-y", "@vrknetha/mcp-server-firecrawl"],
+      "args": ["-y", "mcp-server-firecrawl"],
       "env": {
         "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE"
       }
@@ -80,9 +83,6 @@ npm install
 
 # Build
 npm run build
-
-# Watch mode
-npm run watch
 
 # Run tests
 npm test
