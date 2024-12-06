@@ -1,5 +1,5 @@
 {
-  "name": "@vrknetha/mcp-server-firecrawl",
+  "name": "mcp-server-firecrawl",
   "version": "1.0.0",
   "description": "MCP server for FireCrawl web scraping integration",
   "license": "MIT",
