@@ -459,9 +459,6 @@ function isStatusCheckOptions(args: unknown): args is StatusCheckOptions {
   );
 }
 
-// Add startup message
-console.log("FireCrawl MCP Server running on stdio");
-
 // Server implementation
 const server = new Server(
   {
