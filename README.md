@@ -64,7 +64,7 @@ Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "firecrawl": {
+    "mcp-server-firecrawl": {
       "command": "npx",
       "args": ["-y", "mcp-server-firecrawl"],
       "env": {
