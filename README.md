@@ -1,10 +1,9 @@
 # FireCrawl MCP Server
+[![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
 A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
 
 ## Features
-
-[![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
 - **JavaScript Rendering**: Extract content from JavaScript-heavy websites
 - **Mobile/Desktop Views**: Support for different viewport configurations
@@ -55,6 +54,7 @@ To install FireCrawl for Claude Desktop automatically via [Smithery](https://smi
 npx -y @smithery/cli install mcp-server-firecrawl --client claude
 ```
 
+### Manual Installation
 ```bash
 npm install mcp-server-firecrawl
 ```
