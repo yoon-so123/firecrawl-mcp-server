@@ -4,6 +4,8 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 
 ## Features
 
+[![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
+
 - **JavaScript Rendering**: Extract content from JavaScript-heavy websites
 - **Mobile/Desktop Views**: Support for different viewport configurations
 - **Smart Rate Limiting**: Built-in rate limit handling
@@ -44,6 +46,14 @@ Checks the status of a batch scraping job.
   - `id` (string): Batch job ID to check
 
 ## Installation
+
+### Installing via Smithery
+
+To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/mcp-server-firecrawl):
+
+```bash
+npx -y @smithery/cli install mcp-server-firecrawl --client claude
+```
 
 ```bash
 npm install mcp-server-firecrawl
