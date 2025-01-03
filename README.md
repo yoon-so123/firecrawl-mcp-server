@@ -1,48 +1,21 @@
 # FireCrawl MCP Server
+
 [![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
 A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
 
 ## Features
 
-- **JavaScript Rendering**: Extract content from JavaScript-heavy websites
-- **Mobile/Desktop Views**: Support for different viewport configurations
-- **Smart Rate Limiting**: Built-in rate limit handling
-- **Multiple Formats**: Support for HTML, Markdown, screenshots, and raw text extraction
-- **Batch Processing**: Efficient handling of multiple URLs
-- **Content Filtering**: Include or exclude specific HTML tags
-
-## Tools
-
-### fire_crawl_scrape
-
-Scrapes content from a single URL with customizable options.
-
-- Inputs:
-  - `url` (string): Target URL to scrape
-  - `formats` (array): Output formats (`markdown`, `html`, `rawHtml`, `screenshot`, `links`, `screenshot@fullPage`, `extract`)
-  - `waitFor` (number, optional): Wait time in milliseconds
-  - `onlyMainContent` (boolean, optional): Extract main content only
-  - `includeTags` (array, optional): HTML tags to specifically include
-  - `excludeTags` (array, optional): HTML tags to exclude
-  - `mobile` (boolean, optional): Use mobile viewport
-  - `skipTlsVerification` (boolean, optional): Skip TLS verification
-
-### fire_crawl_batch
-
-Initiates a batch scraping job for multiple URLs.
-
-- Inputs:
-  - `urls` (array): List of URLs to scrape
-  - `formats` (array): Output formats (same as single scrape)
-  - Other options same as `fire_crawl_scrape`
-
-### fire_crawl_status
-
-Checks the status of a batch scraping job.
-
-- Inputs:
-  - `id` (string): Batch job ID to check
+- Web scraping with JavaScript rendering
+- Batch scraping with parallel processing and queuing
+- URL discovery and crawling
+- Web search with content extraction
+- Automatic retries with exponential backoff
+- Credit usage monitoring for cloud API
+- Comprehensive logging system
+- Support for cloud and self-hosted FireCrawl instances
+- Mobile/Desktop viewport support
+- Smart content filtering with tag inclusion/exclusion
 
 ## Installation
 
@@ -55,17 +28,42 @@ npx -y @smithery/cli install mcp-server-firecrawl --client claude
 ```
 
 ### Manual Installation
+
 ```bash
-npm install mcp-server-firecrawl
+npm install -g @mendable/mcp-server-firecrawl
 ```
 
 ## Configuration
 
-### Getting an API Key
+### Environment Variables
 
-1. Sign up for a [FireCrawl account](https://firecrawl.dev)
-2. Generate your API key from the dashboard
-3. Set the API key in your environment
+- `FIRE_CRAWL_API_KEY`: Your FireCrawl API key
+  - Required when using cloud API (default)
+  - Optional when using self-hosted instance with `FIRE_CRAWL_API_URL`
+- `FIRE_CRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
+  - Example: `https://firecrawl.your-domain.com`
+  - If not provided, the cloud API will be used (requires API key)
+
+### Configuration Examples
+
+For cloud API usage (default):
+
+```bash
+export FIRE_CRAWL_API_KEY=your-api-key
+```
+
+For self-hosted instance without authentication:
+
+```bash
+export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
+```
+
+For self-hosted instance with authentication:
+
+```bash
+export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
+export FIRE_CRAWL_API_KEY=your-api-key  # Optional for authenticated self-hosted instances
+```
 
 ### Usage with Claude Desktop
 
@@ -85,6 +83,186 @@ Add this to your `claude_desktop_config.json`:
 }
 ```
 
+### System Configuration
+
+The server includes several configurable parameters:
+
+```typescript
+const CONFIG = {
+  retry: {
+    maxAttempts: 3,
+    initialDelay: 1000, // 1 second
+    maxDelay: 10000, // 10 seconds
+    backoffFactor: 2,
+  },
+  batch: {
+    delayBetweenRequests: 2000, // 2 seconds
+    maxParallelOperations: 3,
+  },
+  credit: {
+    warningThreshold: 1000,
+    criticalThreshold: 100,
+  },
+};
+```
+
+### Rate Limits
+
+The server implements rate limiting to prevent API abuse:
+
+- 3 requests per minute on free tier
+- Automatic retries with exponential backoff
+- Parallel processing for batch operations
+- Higher limits available on paid plans
+
+## Available Tools
+
+### 1. Scrape Tool (`fire_crawl_scrape`)
+
+Scrape content from a single URL with advanced options.
+
+```json
+{
+  "name": "fire_crawl_scrape",
+  "arguments": {
+    "url": "https://example.com",
+    "formats": ["markdown"],
+    "onlyMainContent": true,
+    "waitFor": 1000,
+    "timeout": 30000,
+    "mobile": false,
+    "includeTags": ["article", "main"],
+    "excludeTags": ["nav", "footer"],
+    "skipTlsVerification": false
+  }
+}
+```
+
+### 2. Batch Scrape Tool (`fire_crawl_batch_scrape`)
+
+Scrape multiple URLs with parallel processing and queuing.
+
+```json
+{
+  "name": "fire_crawl_batch_scrape",
+  "arguments": {
+    "urls": ["https://example1.com", "https://example2.com"],
+    "options": {
+      "formats": ["markdown"],
+      "onlyMainContent": true
+    }
+  }
+}
+```
+
+Response includes operation ID for status checking:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress."
+    }
+  ],
+  "isError": false
+}
+```
+
+### 3. Check Batch Status (`fire_crawl_check_batch_status`)
+
+Check the status of a batch operation.
+
+```json
+{
+  "name": "fire_crawl_check_batch_status",
+  "arguments": {
+    "id": "batch_1"
+  }
+}
+```
+
+### 4. Search Tool (`fire_crawl_search`)
+
+Search the web and optionally extract content from search results.
+
+```json
+{
+  "name": "fire_crawl_search",
+  "arguments": {
+    "query": "your search query",
+    "limit": 5,
+    "lang": "en",
+    "country": "us",
+    "scrapeOptions": {
+      "formats": ["markdown"],
+      "onlyMainContent": true
+    }
+  }
+}
+```
+
+### 5. Crawl Tool (`fire_crawl_crawl`)
+
+Start an asynchronous crawl with advanced options.
+
+```json
+{
+  "name": "fire_crawl_crawl",
+  "arguments": {
+    "url": "https://example.com",
+    "maxDepth": 2,
+    "limit": 100,
+    "allowExternalLinks": false,
+    "deduplicateSimilarURLs": true
+  }
+}
+```
+
+## Logging System
+
+The server includes comprehensive logging:
+
+- Operation status and progress
+- Performance metrics
+- Credit usage monitoring
+- Rate limit tracking
+- Error conditions
+
+Example log messages:
+
+```
+[INFO] FireCrawl MCP Server initialized successfully
+[INFO] Starting scrape for URL: https://example.com
+[INFO] Batch operation queued with ID: batch_1
+[WARNING] Credit usage has reached warning threshold
+[ERROR] Rate limit exceeded, retrying in 2s...
+```
+
+## Error Handling
+
+The server provides robust error handling:
+
+- Automatic retries for transient errors
+- Rate limit handling with backoff
+- Detailed error messages
+- Credit usage warnings
+- Network resilience
+
+Example error response:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Error: Rate limit exceeded. Retrying in 2 seconds..."
+    }
+  ],
+  "isError": true
+}
+```
+
 ## Development
 
 ```bash
@@ -98,11 +276,12 @@ npm run build
 npm test
 ```
 
-## Rate Limits
+### Contributing
 
-- 3 requests per minute on free tier
-- 25-second cooldown after hitting rate limit
-- Higher limits available on paid plans
+1. Fork the repository
+2. Create your feature branch
+3. Run tests: `npm test`
+4. Submit a pull request
 
 ## License
 
