@@ -13,7 +13,6 @@ import FirecrawlApp, {
   type CrawlParams,
   type FirecrawlDocument,
 } from '@mendable/firecrawl-js';
-import { URL } from 'url';
 import PQueue from 'p-queue';
 
 // Tool definitions
