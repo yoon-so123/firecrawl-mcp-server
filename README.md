@@ -1,6 +1,8 @@
 # FireCrawl MCP Server
 
-A Model Context Protocol (MCP) server for FireCrawl, providing web scraping, crawling, and search capabilities.
+[![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
+
+A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
 
 ## Features
 
@@ -12,8 +14,20 @@ A Model Context Protocol (MCP) server for FireCrawl, providing web scraping, cra
 - Credit usage monitoring for cloud API
 - Comprehensive logging system
 - Support for cloud and self-hosted FireCrawl instances
+- Mobile/Desktop viewport support
+- Smart content filtering with tag inclusion/exclusion
 
 ## Installation
+
+### Installing via Smithery
+
+To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/mcp-server-firecrawl):
+
+```bash
+npx -y @smithery/cli install mcp-server-firecrawl --client claude
+```
+
+### Manual Installation
 
 ```bash
 npm install -g @mendable/mcp-server-firecrawl
@@ -23,25 +37,50 @@ npm install -g @mendable/mcp-server-firecrawl
 
 ### Environment Variables
 
-- `FIRE_CRAWL_API_KEY` (Required for cloud API): Your FireCrawl API key
+- `FIRE_CRAWL_API_KEY`: Your FireCrawl API key
+  - Required when using cloud API (default)
+  - Optional when using self-hosted instance with `FIRE_CRAWL_API_URL`
 - `FIRE_CRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
   - Example: `https://firecrawl.your-domain.com`
-  - If not provided, the cloud API will be used
-  - Required only for self-hosted FireCrawl instances
+  - If not provided, the cloud API will be used (requires API key)
 
-### Self-Hosted Configuration
+### Configuration Examples
 
-If you're running your own FireCrawl instance, set both environment variables:
+For cloud API usage (default):
 
 ```bash
 export FIRE_CRAWL_API_KEY=your-api-key
+```
+
+For self-hosted instance without authentication:
+
+```bash
 export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
 ```
 
-For cloud usage, only the API key is required:
+For self-hosted instance with authentication:
 
 ```bash
-export FIRE_CRAWL_API_KEY=your-api-key
+export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
+export FIRE_CRAWL_API_KEY=your-api-key  # Optional for authenticated self-hosted instances
+```
+
+### Usage with Claude Desktop
+
+Add this to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "mcp-server-firecrawl": {
+      "command": "npx",
+      "args": ["-y", "mcp-server-firecrawl"],
+      "env": {
+        "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE"
+      }
+    }
+  }
+}
 ```
 
 ### System Configuration
@@ -52,18 +91,18 @@ The server includes several configurable parameters:
 const CONFIG = {
   retry: {
     maxAttempts: 3,
-    initialDelay: 1000,  // 1 second
-    maxDelay: 10000,     // 10 seconds
-    backoffFactor: 2
+    initialDelay: 1000, // 1 second
+    maxDelay: 10000, // 10 seconds
+    backoffFactor: 2,
   },
   batch: {
-    delayBetweenRequests: 2000,  // 2 seconds
-    maxParallelOperations: 3
+    delayBetweenRequests: 2000, // 2 seconds
+    maxParallelOperations: 3,
   },
   credit: {
     warningThreshold: 1000,
-    criticalThreshold: 100
-  }
+    criticalThreshold: 100,
+  },
 };
 ```
 
@@ -71,33 +110,14 @@ const CONFIG = {
 
 The server implements rate limiting to prevent API abuse:
 
-- 3 requests per minute
+- 3 requests per minute on free tier
 - Automatic retries with exponential backoff
 - Parallel processing for batch operations
+- Higher limits available on paid plans
 
 ## Available Tools
 
-### 1. Search Tool (`fire_crawl_search`)
-
-Search the web and optionally extract content from search results.
-
-```json
-{
-  "name": "fire_crawl_search",
-  "arguments": {
-    "query": "your search query",
-    "limit": 5,
-    "lang": "en",
-    "country": "us",
-    "scrapeOptions": {
-      "formats": ["markdown"],
-      "onlyMainContent": true
-    }
-  }
-}
-```
-
-### 2. Scrape Tool (`fire_crawl_scrape`)
+### 1. Scrape Tool (`fire_crawl_scrape`)
 
 Scrape content from a single URL with advanced options.
 
@@ -109,12 +129,16 @@ Scrape content from a single URL with advanced options.
     "formats": ["markdown"],
     "onlyMainContent": true,
     "waitFor": 1000,
-    "timeout": 30000
+    "timeout": 30000,
+    "mobile": false,
+    "includeTags": ["article", "main"],
+    "excludeTags": ["nav", "footer"],
+    "skipTlsVerification": false
   }
 }
 ```
 
-### 3. Batch Scrape Tool (`fire_crawl_batch_scrape`)
+### 2. Batch Scrape Tool (`fire_crawl_batch_scrape`)
 
 Scrape multiple URLs with parallel processing and queuing.
 
@@ -132,17 +156,20 @@ Scrape multiple URLs with parallel processing and queuing.
 ```
 
 Response includes operation ID for status checking:
+
 ```json
 {
-  "content": [{
-    "type": "text",
-    "text": "Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress."
-  }],
+  "content": [
+    {
+      "type": "text",
+      "text": "Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress."
+    }
+  ],
   "isError": false
 }
 ```
 
-### 4. Check Batch Status (`fire_crawl_check_batch_status`)
+### 3. Check Batch Status (`fire_crawl_check_batch_status`)
 
 Check the status of a batch operation.
 
@@ -151,6 +178,26 @@ Check the status of a batch operation.
   "name": "fire_crawl_check_batch_status",
   "arguments": {
     "id": "batch_1"
+  }
+}
+```
+
+### 4. Search Tool (`fire_crawl_search`)
+
+Search the web and optionally extract content from search results.
+
+```json
+{
+  "name": "fire_crawl_search",
+  "arguments": {
+    "query": "your search query",
+    "limit": 5,
+    "lang": "en",
+    "country": "us",
+    "scrapeOptions": {
+      "formats": ["markdown"],
+      "onlyMainContent": true
+    }
   }
 }
 ```
@@ -183,6 +230,7 @@ The server includes comprehensive logging:
 - Error conditions
 
 Example log messages:
+
 ```
 [INFO] FireCrawl MCP Server initialized successfully
 [INFO] Starting scrape for URL: https://example.com
@@ -205,26 +253,27 @@ Example error response:
 
 ```json
 {
-  "content": [{
-    "type": "text",
-    "text": "Error: Rate limit exceeded. Retrying in 2 seconds..."
-  }],
+  "content": [
+    {
+      "type": "text",
+      "text": "Error: Rate limit exceeded. Retrying in 2 seconds..."
+    }
+  ],
   "isError": true
 }
 ```
 
 ## Development
 
-### Running Tests
-
 ```bash
-npm test
-```
+# Install dependencies
+npm install
 
-### Building
-
-```bash
+# Build
 npm run build
+
+# Run tests
+npm test
 ```
 
 ### Contributing
@@ -236,4 +285,4 @@ npm run build
 
 ## License
 
-MIT
+MIT License - see LICENSE file for details
