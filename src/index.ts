@@ -13,6 +13,8 @@ import FirecrawlApp, {
   type CrawlParams,
   type FirecrawlDocument,
 } from '@mendable/firecrawl-js';
+import { URL } from 'url';
+import PQueue from 'p-queue';
 
 // Tool definitions
 const SCRAPE_TOOL: Tool = {
@@ -592,7 +594,7 @@ const client = new FirecrawlApp({
   ...(FIRE_CRAWL_API_URL ? { apiUrl: FIRE_CRAWL_API_URL } : {}),
 });
 
-// Rate limit configuration
+// Simplify rate limiting to work with SDK's rate limiting
 const RATE_LIMIT = {
   perMinute: 3,
   waitTime: 25000, // 25 seconds in milliseconds
@@ -601,10 +603,9 @@ const RATE_LIMIT = {
 const requestCount = {
   minute: 0,
   lastReset: Date.now(),
-  nextAllowedTime: Date.now(),
 };
 
-async function checkRateLimit() {
+async function checkRateLimit(): Promise<void> {
   const now = Date.now();
 
   // Reset counter if minute has passed
@@ -617,37 +618,202 @@ async function checkRateLimit() {
     });
   }
 
-  // Check if we need to wait
-  if (now < requestCount.nextAllowedTime) {
-    const waitTime = requestCount.nextAllowedTime - now;
-    server.sendLoggingMessage({
-      level: 'warning',
-      data: `Rate limit exceeded: waiting ${Math.ceil(
-        waitTime / 1000
-      )} seconds`,
-    });
-    throw new Error(
-      `Rate limit exceeded. Please wait ${Math.ceil(
-        waitTime / 1000
-      )} seconds before trying again.`
-    );
-  }
-
   // Check if we've hit the per-minute limit
   if (requestCount.minute >= RATE_LIMIT.perMinute) {
-    requestCount.nextAllowedTime = now + RATE_LIMIT.waitTime;
     server.sendLoggingMessage({
       level: 'warning',
-      data: `Per-minute rate limit reached: ${RATE_LIMIT.perMinute} requests`,
+      data: `Rate limit reached: ${RATE_LIMIT.perMinute} requests per minute`,
     });
     throw new Error(
-      `Rate limit exceeded. Please wait ${
-        RATE_LIMIT.waitTime / 1000
-      } seconds before trying again.`
+      `Rate limit reached: ${RATE_LIMIT.perMinute} requests per minute`
     );
   }
 
   requestCount.minute++;
+}
+
+// Add after imports
+
+// Add configuration for retries and delays
+const CONFIG = {
+  retry: {
+    maxAttempts: 3,
+    initialDelay: 1000,
+    maxDelay: 10000,
+    backoffFactor: 2,
+  },
+  batch: {
+    delayBetweenRequests: 2000,
+    maxParallelOperations: 3,
+  },
+  credit: {
+    warningThreshold: 1000,
+    criticalThreshold: 100,
+  },
+};
+
+// Add credit tracking
+interface CreditUsage {
+  total: number;
+  lastCheck: number;
+}
+
+const creditUsage: CreditUsage = {
+  total: 0,
+  lastCheck: Date.now(),
+};
+
+// Add utility function for delay
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Add retry logic with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  context: string,
+  attempt = 1
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const isRateLimit =
+      error instanceof Error &&
+      (error.message.includes('rate limit') || error.message.includes('429'));
+
+    if (isRateLimit && attempt < CONFIG.retry.maxAttempts) {
+      const delayMs = Math.min(
+        CONFIG.retry.initialDelay *
+          Math.pow(CONFIG.retry.backoffFactor, attempt - 1),
+        CONFIG.retry.maxDelay
+      );
+
+      server.sendLoggingMessage({
+        level: 'warning',
+        data: `Rate limit hit for ${context}. Attempt ${attempt}/${CONFIG.retry.maxAttempts}. Retrying in ${delayMs}ms`,
+      });
+
+      await delay(delayMs);
+      return withRetry(operation, context, attempt + 1);
+    }
+
+    throw error;
+  }
+}
+
+// Add credit monitoring
+async function updateCreditUsage(creditsUsed: number): Promise<void> {
+  creditUsage.total += creditsUsed;
+
+  // Log credit usage
+  server.sendLoggingMessage({
+    level: 'info',
+    data: `Credit usage: ${creditUsage.total} credits used total`,
+  });
+
+  // Check thresholds
+  if (creditUsage.total >= CONFIG.credit.criticalThreshold) {
+    server.sendLoggingMessage({
+      level: 'error',
+      data: `CRITICAL: Credit usage has reached ${creditUsage.total}`,
+    });
+  } else if (creditUsage.total >= CONFIG.credit.warningThreshold) {
+    server.sendLoggingMessage({
+      level: 'warning',
+      data: `WARNING: Credit usage has reached ${creditUsage.total}`,
+    });
+  }
+}
+
+// Add before server implementation
+interface QueuedBatchOperation {
+  id: string;
+  urls: string[];
+  options?: any;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: {
+    completed: number;
+    total: number;
+  };
+  result?: any;
+  error?: string;
+}
+
+// Initialize queue system
+const batchQueue = new PQueue({ concurrency: 1 });
+const batchOperations = new Map<string, QueuedBatchOperation>();
+let operationCounter = 0;
+
+async function processBatchOperation(
+  operation: QueuedBatchOperation
+): Promise<void> {
+  try {
+    operation.status = 'processing';
+    let totalCreditsUsed = 0;
+
+    // Process in chunks to respect rate limits
+    const chunkSize = RATE_LIMIT.perMinute;
+    const chunks = [];
+    for (let i = 0; i < operation.urls.length; i += chunkSize) {
+      chunks.push(operation.urls.slice(i, i + chunkSize));
+    }
+
+    // Create parallel processor with limited concurrency
+    const parallelQueue = new PQueue({
+      concurrency: CONFIG.batch.maxParallelOperations,
+      interval: 1000,
+      intervalCap: RATE_LIMIT.perMinute,
+    });
+
+    const results = await Promise.all(
+      chunks.map((chunk) =>
+        parallelQueue.add(async () => {
+          await checkRateLimit();
+
+          const response = await withRetry(
+            async () => client.asyncBatchScrapeUrls(chunk, operation.options),
+            `batch ${operation.id} chunk processing`
+          );
+
+          // Track credits if using cloud API and credits are available
+          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+            totalCreditsUsed += response.creditsUsed;
+            await updateCreditUsage(response.creditsUsed);
+          }
+
+          operation.progress.completed += chunk.length;
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Batch ${operation.id}: Processed ${operation.progress.completed}/${operation.progress.total} URLs`,
+          });
+
+          // Add delay between chunks
+          await delay(CONFIG.batch.delayBetweenRequests);
+
+          return response;
+        })
+      )
+    );
+
+    operation.status = 'completed';
+    operation.result = results;
+
+    // Log final credit usage for the batch
+    if (!FIRE_CRAWL_API_URL) {
+      server.sendLoggingMessage({
+        level: 'info',
+        data: `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`,
+      });
+    }
+  } catch (error) {
+    operation.status = 'failed';
+    operation.error = error instanceof Error ? error.message : String(error);
+
+    server.sendLoggingMessage({
+      level: 'error',
+      data: `Batch ${operation.id} failed: ${operation.error}`,
+    });
+  }
 }
 
 // Tool handlers
@@ -702,31 +868,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             data: `Scrape completed in ${Date.now() - scrapeStartTime}ms`,
           });
 
-          if (!response.success) {
-            throw new Error(
-              `Scraping failed: ${response.error || 'Unknown error'}`
-            );
+          if ('success' in response && !response.success) {
+            throw new Error(response.error || 'Scraping failed');
           }
+
           const content =
-            response.markdown || response.html || response.rawHtml;
-          if (!content) {
-            throw new Error(
-              `No content received from FireCrawl API. Response: ${JSON.stringify(
-                response,
-                null,
-                2
-              )}`
-            );
-          }
+            'markdown' in response
+              ? response.markdown || response.html || response.rawHtml
+              : null;
           return {
-            content: [{ type: 'text', text: content }],
+            content: [
+              { type: 'text', text: content || 'No content available' },
+            ],
             isError: false,
           };
         } catch (error) {
           const errorMessage =
-            error instanceof Error
-              ? error.message
-              : `Scraping failed: ${JSON.stringify(error)}`;
+            error instanceof Error ? error.message : String(error);
           return {
             content: [{ type: 'text', text: errorMessage }],
             isError: true,
@@ -756,37 +914,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         if (!isBatchScrapeOptions(args)) {
           throw new Error('Invalid arguments for fire_crawl_batch_scrape');
         }
+
         try {
-          await checkRateLimit();
-          const batchStartTime = Date.now();
+          const operationId = `batch_${++operationCounter}`;
+          const operation: QueuedBatchOperation = {
+            id: operationId,
+            urls: args.urls,
+            options: args.options,
+            status: 'pending',
+            progress: {
+              completed: 0,
+              total: args.urls.length,
+            },
+          };
+
+          batchOperations.set(operationId, operation);
+
+          // Queue the operation
+          batchQueue.add(() => processBatchOperation(operation));
+
           server.sendLoggingMessage({
             level: 'info',
-            data: `Starting batch scrape for ${
-              args.urls.length
-            } URLs with options: ${JSON.stringify(args.options)}`,
+            data: `Queued batch operation ${operationId} with ${args.urls.length} URLs`,
           });
 
-          const response = await client.asyncBatchScrapeUrls(
-            args.urls,
-            args.options
-          );
-
-          // Log performance metrics
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Batch scrape initiated in ${Date.now() - batchStartTime}ms`,
-          });
-
-          if (!response.success) {
-            throw new Error(
-              `Batch scrape failed: ${response.error || 'Unknown error'}`
-            );
-          }
           return {
             content: [
               {
                 type: 'text',
-                text: `Started batch scrape with job ID: ${response.id}`,
+                text: `Batch operation queued with ID: ${operationId}. Use fire_crawl_check_batch_status to check progress.`,
               },
             ],
             isError: false,
@@ -795,7 +951,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const errorMessage =
             error instanceof Error
               ? error.message
-              : `Batch scrape failed: ${JSON.stringify(error)}`;
+              : `Batch operation failed: ${JSON.stringify(error)}`;
           return {
             content: [{ type: 'text', text: errorMessage }],
             isError: true,
@@ -809,36 +965,34 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             'Invalid arguments for fire_crawl_check_batch_status'
           );
         }
-        try {
-          await checkRateLimit();
-          const response = await client.checkBatchScrapeStatus(args.id);
-          if (!response.success) {
-            throw new Error(
-              `Status check failed: ${response.error || 'Unknown error'}`
-            );
-          }
-          const status = `Batch Status:
-Status: ${response.status}
-Progress: ${response.completed}/${response.total}
-Credits Used: ${response.creditsUsed}
-Expires At: ${response.expiresAt}
-${
-  response.data.length > 0 ? '\nResults:\n' + formatResults(response.data) : ''
-}`;
+
+        const operation = batchOperations.get(args.id);
+        if (!operation) {
           return {
-            content: [{ type: 'text', text: status }],
-            isError: false,
-          };
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : `Status check failed: ${JSON.stringify(error)}`;
-          return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [
+              {
+                type: 'text',
+                text: `No batch operation found with ID: ${args.id}`,
+              },
+            ],
             isError: true,
           };
         }
+
+        const status = `Batch Status:
+Status: ${operation.status}
+Progress: ${operation.progress.completed}/${operation.progress.total}
+${operation.error ? `Error: ${operation.error}` : ''}
+${
+  operation.result
+    ? `Results: ${JSON.stringify(operation.result, null, 2)}`
+    : ''
+}`;
+
+        return {
+          content: [{ type: 'text', text: status }],
+          isError: false,
+        };
       }
 
       case 'fire_crawl_crawl': {
@@ -846,10 +1000,21 @@ ${
           throw new Error('Invalid arguments for fire_crawl_crawl');
         }
         const { url, ...options } = args;
-        const response = await client.asyncCrawlUrl(url, options);
+
+        const response = await withRetry(
+          async () => client.asyncCrawlUrl(url, options),
+          'crawl operation'
+        );
+
         if (!response.success) {
           throw new Error(response.error);
         }
+
+        // Monitor credits for cloud API
+        if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+          await updateCreditUsage(response.creditsUsed);
+        }
+
         return {
           content: [
             {
@@ -891,12 +1056,21 @@ ${
         }
         try {
           await checkRateLimit();
-          const response = await client.search(args.query, args);
+
+          const response = await withRetry(
+            async () => client.search(args.query, args),
+            'search operation'
+          );
 
           if (!response.success) {
             throw new Error(
               `Search failed: ${response.error || 'Unknown error'}`
             );
+          }
+
+          // Monitor credits for cloud API
+          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+            await updateCreditUsage(response.creditsUsed);
           }
 
           // Format the results
@@ -1010,3 +1184,8 @@ runServer().catch((error) => {
   console.error('Fatal error running server:', error);
   process.exit(1);
 });
+
+// Add type guard for credit usage
+function hasCredits(response: any): response is { creditsUsed: number } {
+  return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
+}
