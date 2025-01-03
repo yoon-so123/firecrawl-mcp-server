@@ -1,109 +1,173 @@
 # FireCrawl MCP Server
-[![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
-A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
+A Model Context Protocol (MCP) server for FireCrawl, providing web scraping, crawling, and search capabilities.
 
 ## Features
 
-- **JavaScript Rendering**: Extract content from JavaScript-heavy websites
-- **Mobile/Desktop Views**: Support for different viewport configurations
-- **Smart Rate Limiting**: Built-in rate limit handling
-- **Multiple Formats**: Support for HTML, Markdown, screenshots, and raw text extraction
-- **Batch Processing**: Efficient handling of multiple URLs
-- **Content Filtering**: Include or exclude specific HTML tags
-
-## Tools
-
-### fire_crawl_scrape
-
-Scrapes content from a single URL with customizable options.
-
-- Inputs:
-  - `url` (string): Target URL to scrape
-  - `formats` (array): Output formats (`markdown`, `html`, `rawHtml`, `screenshot`, `links`, `screenshot@fullPage`, `extract`)
-  - `waitFor` (number, optional): Wait time in milliseconds
-  - `onlyMainContent` (boolean, optional): Extract main content only
-  - `includeTags` (array, optional): HTML tags to specifically include
-  - `excludeTags` (array, optional): HTML tags to exclude
-  - `mobile` (boolean, optional): Use mobile viewport
-  - `skipTlsVerification` (boolean, optional): Skip TLS verification
-
-### fire_crawl_batch
-
-Initiates a batch scraping job for multiple URLs.
-
-- Inputs:
-  - `urls` (array): List of URLs to scrape
-  - `formats` (array): Output formats (same as single scrape)
-  - Other options same as `fire_crawl_scrape`
-
-### fire_crawl_status
-
-Checks the status of a batch scraping job.
-
-- Inputs:
-  - `id` (string): Batch job ID to check
+- Web scraping with JavaScript rendering
+- Batch scraping with async processing
+- URL discovery and crawling
+- Web search with content extraction
+- Rate limiting and error handling
+- Support for cloud and self-hosted FireCrawl instances
 
 ## Installation
 
-### Installing via Smithery
-
-To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/mcp-server-firecrawl):
-
 ```bash
-npx -y @smithery/cli install mcp-server-firecrawl --client claude
-```
-
-### Manual Installation
-```bash
-npm install mcp-server-firecrawl
+npm install -g @mendable/mcp-server-firecrawl
 ```
 
 ## Configuration
 
-### Getting an API Key
+### Environment Variables
 
-1. Sign up for a [FireCrawl account](https://firecrawl.dev)
-2. Generate your API key from the dashboard
-3. Set the API key in your environment
+- `FIRE_CRAWL_API_KEY` (Required): Your FireCrawl API key
+- `FIRE_CRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
+  - Example: `https://firecrawl.your-domain.com`
+  - If not provided, the cloud API will be used
+  - Required only for self-hosted FireCrawl instances
 
-### Usage with Claude Desktop
+### Self-Hosted Configuration
 
-Add this to your `claude_desktop_config.json`:
+If you're running your own FireCrawl instance, set both environment variables:
+
+```bash
+export FIRE_CRAWL_API_KEY=your-api-key
+export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
+```
+
+For cloud usage, only the API key is required:
+
+```bash
+export FIRE_CRAWL_API_KEY=your-api-key
+```
+
+### Rate Limits
+
+The server implements rate limiting to prevent API abuse:
+
+- 3 requests per minute
+- 25-second cooldown when limit is reached
+
+## Available Tools
+
+### 1. Search Tool (`fire_crawl_search`)
+
+Search the web and optionally extract content from search results.
 
 ```json
 {
-  "mcpServers": {
-    "mcp-server-firecrawl": {
-      "command": "npx",
-      "args": ["-y", "mcp-server-firecrawl"],
-      "env": {
-        "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE"
-      }
+  "name": "fire_crawl_search",
+  "arguments": {
+    "query": "your search query",
+    "limit": 5,
+    "lang": "en",
+    "country": "us",
+    "scrapeOptions": {
+      "formats": ["markdown"],
+      "onlyMainContent": true
     }
   }
 }
 ```
 
+### 2. Scrape Tool (`fire_crawl_scrape`)
+
+Scrape content from a single URL with advanced options.
+
+```json
+{
+  "name": "fire_crawl_scrape",
+  "arguments": {
+    "url": "https://example.com",
+    "formats": ["markdown"],
+    "onlyMainContent": true
+  }
+}
+```
+
+### 3. Batch Scrape Tool (`fire_crawl_batch_scrape`)
+
+Scrape multiple URLs asynchronously.
+
+```json
+{
+  "name": "fire_crawl_batch_scrape",
+  "arguments": {
+    "urls": ["https://example1.com", "https://example2.com"],
+    "options": {
+      "formats": ["markdown"]
+    }
+  }
+}
+```
+
+### 4. Map Tool (`fire_crawl_map`)
+
+Discover URLs from a starting point.
+
+```json
+{
+  "name": "fire_crawl_map",
+  "arguments": {
+    "url": "https://example.com",
+    "includeSubdomains": true
+  }
+}
+```
+
+### 5. Crawl Tool (`fire_crawl_crawl`)
+
+Start an asynchronous crawl from a URL.
+
+```json
+{
+  "name": "fire_crawl_crawl",
+  "arguments": {
+    "url": "https://example.com",
+    "maxDepth": 2,
+    "limit": 100
+  }
+}
+```
+
+## Error Handling
+
+The server provides detailed error messages for:
+
+- Invalid inputs
+- Rate limit exceeded
+- API errors
+- Network issues
+
+Example error response:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Error: Rate limit exceeded. Please wait 25 seconds."
+    }
+  ],
+  "isError": true
+}
+```
+
 ## Development
 
+### Running Tests
+
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Run tests
 npm test
 ```
 
-## Rate Limits
+### Building
 
-- 3 requests per minute on free tier
-- 25-second cooldown after hitting rate limit
-- Higher limits available on paid plans
+```bash
+npm run build
+```
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT

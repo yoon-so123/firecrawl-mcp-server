@@ -19,6 +19,9 @@ npm-debug.log*
 .vscode/
 *.swp
 *.swo
+.cursorrules.md
+IMPLEMENTATION.md
+v1.2.md
 
 # OS
 .DS_Store
