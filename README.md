@@ -5,10 +5,12 @@ A Model Context Protocol (MCP) server for FireCrawl, providing web scraping, cra
 ## Features
 
 - Web scraping with JavaScript rendering
-- Batch scraping with async processing
+- Batch scraping with parallel processing and queuing
 - URL discovery and crawling
 - Web search with content extraction
-- Rate limiting and error handling
+- Automatic retries with exponential backoff
+- Credit usage monitoring for cloud API
+- Comprehensive logging system
 - Support for cloud and self-hosted FireCrawl instances
 
 ## Installation
@@ -21,7 +23,7 @@ npm install -g @mendable/mcp-server-firecrawl
 
 ### Environment Variables
 
-- `FIRE_CRAWL_API_KEY` (Required): Your FireCrawl API key
+- `FIRE_CRAWL_API_KEY` (Required for cloud API): Your FireCrawl API key
 - `FIRE_CRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
   - Example: `https://firecrawl.your-domain.com`
   - If not provided, the cloud API will be used
@@ -42,12 +44,36 @@ For cloud usage, only the API key is required:
 export FIRE_CRAWL_API_KEY=your-api-key
 ```
 
+### System Configuration
+
+The server includes several configurable parameters:
+
+```typescript
+const CONFIG = {
+  retry: {
+    maxAttempts: 3,
+    initialDelay: 1000,  // 1 second
+    maxDelay: 10000,     // 10 seconds
+    backoffFactor: 2
+  },
+  batch: {
+    delayBetweenRequests: 2000,  // 2 seconds
+    maxParallelOperations: 3
+  },
+  credit: {
+    warningThreshold: 1000,
+    criticalThreshold: 100
+  }
+};
+```
+
 ### Rate Limits
 
 The server implements rate limiting to prevent API abuse:
 
 - 3 requests per minute
-- 25-second cooldown when limit is reached
+- Automatic retries with exponential backoff
+- Parallel processing for batch operations
 
 ## Available Tools
 
@@ -81,14 +107,16 @@ Scrape content from a single URL with advanced options.
   "arguments": {
     "url": "https://example.com",
     "formats": ["markdown"],
-    "onlyMainContent": true
+    "onlyMainContent": true,
+    "waitFor": 1000,
+    "timeout": 30000
   }
 }
 ```
 
 ### 3. Batch Scrape Tool (`fire_crawl_batch_scrape`)
 
-Scrape multiple URLs asynchronously.
+Scrape multiple URLs with parallel processing and queuing.
 
 ```json
 {
@@ -96,29 +124,40 @@ Scrape multiple URLs asynchronously.
   "arguments": {
     "urls": ["https://example1.com", "https://example2.com"],
     "options": {
-      "formats": ["markdown"]
+      "formats": ["markdown"],
+      "onlyMainContent": true
     }
   }
 }
 ```
 
-### 4. Map Tool (`fire_crawl_map`)
+Response includes operation ID for status checking:
+```json
+{
+  "content": [{
+    "type": "text",
+    "text": "Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress."
+  }],
+  "isError": false
+}
+```
 
-Discover URLs from a starting point.
+### 4. Check Batch Status (`fire_crawl_check_batch_status`)
+
+Check the status of a batch operation.
 
 ```json
 {
-  "name": "fire_crawl_map",
+  "name": "fire_crawl_check_batch_status",
   "arguments": {
-    "url": "https://example.com",
-    "includeSubdomains": true
+    "id": "batch_1"
   }
 }
 ```
 
 ### 5. Crawl Tool (`fire_crawl_crawl`)
 
-Start an asynchronous crawl from a URL.
+Start an asynchronous crawl with advanced options.
 
 ```json
 {
@@ -126,30 +165,50 @@ Start an asynchronous crawl from a URL.
   "arguments": {
     "url": "https://example.com",
     "maxDepth": 2,
-    "limit": 100
+    "limit": 100,
+    "allowExternalLinks": false,
+    "deduplicateSimilarURLs": true
   }
 }
 ```
 
+## Logging System
+
+The server includes comprehensive logging:
+
+- Operation status and progress
+- Performance metrics
+- Credit usage monitoring
+- Rate limit tracking
+- Error conditions
+
+Example log messages:
+```
+[INFO] FireCrawl MCP Server initialized successfully
+[INFO] Starting scrape for URL: https://example.com
+[INFO] Batch operation queued with ID: batch_1
+[WARNING] Credit usage has reached warning threshold
+[ERROR] Rate limit exceeded, retrying in 2s...
+```
+
 ## Error Handling
 
-The server provides detailed error messages for:
+The server provides robust error handling:
 
-- Invalid inputs
-- Rate limit exceeded
-- API errors
-- Network issues
+- Automatic retries for transient errors
+- Rate limit handling with backoff
+- Detailed error messages
+- Credit usage warnings
+- Network resilience
 
 Example error response:
 
 ```json
 {
-  "content": [
-    {
-      "type": "text",
-      "text": "Error: Rate limit exceeded. Please wait 25 seconds."
-    }
-  ],
+  "content": [{
+    "type": "text",
+    "text": "Error: Rate limit exceeded. Retrying in 2 seconds..."
+  }],
   "isError": true
 }
 ```
@@ -167,6 +226,13 @@ npm test
 ```bash
 npm run build
 ```
+
+### Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Run tests: `npm test`
+4. Submit a pull request
 
 ## License
 
