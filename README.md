@@ -32,7 +32,7 @@ npx -y @smithery/cli install mcp-server-firecrawl --client claude
 ### Manual Installation
 
 ```bash
-npm install -g @mendable/mcp-server-firecrawl
+npm install -g mcp-server-firecrawl
 ```
 
 ## Configuration

@@ -21,7 +21,6 @@
 - Enhanced URL validation before scraping
 - Updated configuration with new retry and batch processing options
 - Optimized rate limiting with automatic backoff strategy
-- Updated package name to `@mendable/mcp-server-firecrawl`
 - Improved documentation with new features and examples
 - Added detailed self-hosted configuration guide
 
