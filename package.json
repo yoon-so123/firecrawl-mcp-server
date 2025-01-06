@@ -1,22 +1,25 @@
 {
   "name": "mcp-server-firecrawl",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "MCP server for FireCrawl web scraping integration",
   "type": "module",
-  "main": "dist/src/index.js",
-  "bin": {
-    "mcp-server-firecrawl": "dist/src/index.js"
-  },
+  "bin": "dist/src/index.js",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "start": "node dist/src/index.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "prepare": "npm run build"
   },
   "license": "ISC",
   "dependencies": {
