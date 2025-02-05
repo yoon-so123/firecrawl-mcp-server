@@ -221,6 +221,63 @@ Start an asynchronous crawl with advanced options.
 }
 ```
 
+### 6. Extract Tool (`fire_crawl_extract`)
+
+Extract structured information from web pages using LLM capabilities. Supports both cloud AI and self-hosted LLM extraction.
+
+```json
+{
+  "name": "fire_crawl_extract",
+  "arguments": {
+    "urls": ["https://example.com/page1", "https://example.com/page2"],
+    "prompt": "Extract product information including name, price, and description",
+    "systemPrompt": "You are a helpful assistant that extracts product information",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "description": { "type": "string" }
+      },
+      "required": ["name", "price"]
+    },
+    "allowExternalLinks": false,
+    "enableWebSearch": false,
+    "includeSubdomains": false
+  }
+}
+```
+
+Example response:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": {
+        "name": "Example Product",
+        "price": 99.99,
+        "description": "This is an example product description"
+      }
+    }
+  ],
+  "isError": false
+}
+```
+
+#### Extract Tool Options:
+
+- `urls`: Array of URLs to extract information from
+- `prompt`: Custom prompt for the LLM extraction
+- `systemPrompt`: System prompt to guide the LLM
+- `schema`: JSON schema for structured data extraction
+- `allowExternalLinks`: Allow extraction from external links
+- `enableWebSearch`: Enable web search for additional context
+- `includeSubdomains`: Include subdomains in extraction
+
+When using a self-hosted instance, the extraction will use your configured LLM. For cloud API, it uses FireCrawl's managed LLM service.
+
 ## Logging System
 
 The server includes comprehensive logging:

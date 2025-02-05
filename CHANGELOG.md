@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.2] - 2025-02-05
+
+### Fixed
+
+- Resolved unused interface warnings for ExtractParams and ExtractResponse
+- Improved type safety in extract operations
+- Fixed type casting issues in API responses
+
+### Changed
+
+- Improved type guards for better type inference
+- Enhanced error messages for configuration validation
+
 ## [1.2.0] - 2024-01-03
 
 ### Added
