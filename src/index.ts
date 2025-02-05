@@ -475,6 +475,48 @@ const SEARCH_TOOL: Tool = {
   },
 };
 
+const EXTRACT_TOOL: Tool = {
+  name: 'fire_crawl_extract',
+  description:
+    'Extract structured information from web pages using LLM. ' +
+    'Supports both cloud AI and self-hosted LLM extraction.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      urls: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'List of URLs to extract information from',
+      },
+      prompt: {
+        type: 'string',
+        description: 'Prompt for the LLM extraction',
+      },
+      systemPrompt: {
+        type: 'string',
+        description: 'System prompt for LLM extraction',
+      },
+      schema: {
+        type: 'object',
+        description: 'JSON schema for structured data extraction',
+      },
+      allowExternalLinks: {
+        type: 'boolean',
+        description: 'Allow extraction from external links',
+      },
+      enableWebSearch: {
+        type: 'boolean',
+        description: 'Enable web search for additional context',
+      },
+      includeSubdomains: {
+        type: 'boolean',
+        description: 'Include subdomains in extraction',
+      },
+    },
+    required: ['urls'],
+  },
+};
+
 // Type definitions
 interface BatchScrapeOptions {
   urls: string[];
@@ -501,6 +543,36 @@ interface SearchOptions {
     onlyMainContent?: boolean;
     waitFor?: number;
   };
+}
+
+// Add after other interfaces
+interface ExtractParams<T = any> {
+  prompt?: string;
+  systemPrompt?: string;
+  schema?: T | object;
+  allowExternalLinks?: boolean;
+  enableWebSearch?: boolean;
+  includeSubdomains?: boolean;
+  origin?: string;
+}
+
+interface ExtractArgs {
+  urls: string[];
+  prompt?: string;
+  systemPrompt?: string;
+  schema?: object;
+  allowExternalLinks?: boolean;
+  enableWebSearch?: boolean;
+  includeSubdomains?: boolean;
+  origin?: string;
+}
+
+interface ExtractResponse<T = any> {
+  success: boolean;
+  data: T;
+  error?: string;
+  warning?: string;
+  creditsUsed?: number;
 }
 
 // Type guards
@@ -558,6 +630,15 @@ function isSearchOptions(args: unknown): args is SearchOptions {
     args !== null &&
     'query' in args &&
     typeof (args as { query: unknown }).query === 'string'
+  );
+}
+
+function isExtractOptions(args: unknown): args is ExtractArgs {
+  if (typeof args !== 'object' || args === null) return false;
+  const { urls } = args as { urls?: unknown };
+  return (
+    Array.isArray(urls) &&
+    urls.every((url): url is string => typeof url === 'string')
   );
 }
 
@@ -825,6 +906,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     CHECK_BATCH_STATUS_TOOL,
     CHECK_CRAWL_STATUS_TOOL,
     SEARCH_TOOL,
+    EXTRACT_TOOL,
   ],
 }));
 
@@ -1092,6 +1174,110 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             error instanceof Error
               ? error.message
               : `Search failed: ${JSON.stringify(error)}`;
+          return {
+            content: [{ type: 'text', text: errorMessage }],
+            isError: true,
+          };
+        }
+      }
+
+      case 'fire_crawl_extract': {
+        if (!isExtractOptions(args)) {
+          throw new Error('Invalid arguments for fire_crawl_extract');
+        }
+
+        try {
+          await checkRateLimit();
+          const extractStartTime = Date.now();
+
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Starting extraction for URLs: ${args.urls.join(', ')}`,
+          });
+
+          // Log if using self-hosted instance
+          if (FIRE_CRAWL_API_URL) {
+            server.sendLoggingMessage({
+              level: 'info',
+              data: 'Using self-hosted instance for extraction',
+            });
+          }
+
+          const extractResponse = await withRetry(
+            async () =>
+              client.extract(args.urls, {
+                prompt: args.prompt,
+                systemPrompt: args.systemPrompt,
+                schema: args.schema,
+                allowExternalLinks: args.allowExternalLinks,
+                enableWebSearch: args.enableWebSearch,
+                includeSubdomains: args.includeSubdomains,
+                origin: 'mcp-server',
+              } as ExtractParams),
+            'extract operation'
+          );
+
+          // Type guard for successful response
+          if (!('success' in extractResponse) || !extractResponse.success) {
+            throw new Error(extractResponse.error || 'Extraction failed');
+          }
+
+          const response = extractResponse as ExtractResponse;
+
+          // Monitor credits for cloud API
+          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+            await updateCreditUsage(response.creditsUsed || 0);
+          }
+
+          // Log performance metrics
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Extraction completed in ${Date.now() - extractStartTime}ms`,
+          });
+
+          // Add warning to response if present
+          const result = {
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify(response.data, null, 2),
+              },
+            ],
+            isError: false,
+          };
+
+          if (response.warning) {
+            server.sendLoggingMessage({
+              level: 'warning',
+              data: response.warning,
+            });
+          }
+
+          return result;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+
+          // Special handling for self-hosted instance errors
+          if (
+            FIRE_CRAWL_API_URL &&
+            errorMessage.toLowerCase().includes('not supported')
+          ) {
+            server.sendLoggingMessage({
+              level: 'error',
+              data: 'Extraction is not supported by this self-hosted instance',
+            });
+            return {
+              content: [
+                {
+                  type: 'text',
+                  text: 'Extraction is not supported by this self-hosted instance. Please ensure LLM support is configured.',
+                },
+              ],
+              isError: true,
+            };
+          }
+
           return {
             content: [{ type: 'text', text: errorMessage }],
             isError: true,
