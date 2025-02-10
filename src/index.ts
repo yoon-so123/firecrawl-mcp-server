@@ -674,57 +674,13 @@ const client = new FirecrawlApp({
   ...(FIRE_CRAWL_API_URL ? { apiUrl: FIRE_CRAWL_API_URL } : {}),
 });
 
-// Simplify rate limiting to work with SDK's rate limiting
-const RATE_LIMIT = {
-  perMinute: 3,
-  waitTime: 25000, // 25 seconds in milliseconds
-};
-
-const requestCount = {
-  minute: 0,
-  lastReset: Date.now(),
-};
-
-async function checkRateLimit(): Promise<void> {
-  const now = Date.now();
-
-  // Reset counter if minute has passed
-  if (now - requestCount.lastReset > 60000) {
-    requestCount.minute = 0;
-    requestCount.lastReset = now;
-    server.sendLoggingMessage({
-      level: 'info',
-      data: 'Rate limit counter reset',
-    });
-  }
-
-  // Check if we've hit the per-minute limit
-  if (requestCount.minute >= RATE_LIMIT.perMinute) {
-    server.sendLoggingMessage({
-      level: 'warning',
-      data: `Rate limit reached: ${RATE_LIMIT.perMinute} requests per minute`,
-    });
-    throw new Error(
-      `Rate limit reached: ${RATE_LIMIT.perMinute} requests per minute`
-    );
-  }
-
-  requestCount.minute++;
-}
-
-// Add after imports
-
-// Add configuration for retries and delays
+// Configuration for retries and monitoring
 const CONFIG = {
   retry: {
     maxAttempts: 3,
     initialDelay: 1000,
     maxDelay: 10000,
     backoffFactor: 2,
-  },
-  batch: {
-    delayBetweenRequests: 2000,
-    maxParallelOperations: 3,
   },
   credit: {
     warningThreshold: 1000,
@@ -831,52 +787,25 @@ async function processBatchOperation(
     operation.status = 'processing';
     let totalCreditsUsed = 0;
 
-    // Process in chunks to respect rate limits
-    const chunkSize = RATE_LIMIT.perMinute;
-    const chunks = [];
-    for (let i = 0; i < operation.urls.length; i += chunkSize) {
-      chunks.push(operation.urls.slice(i, i + chunkSize));
-    }
-
-    // Create parallel processor with limited concurrency
-    const parallelQueue = new PQueue({
-      concurrency: CONFIG.batch.maxParallelOperations,
-      interval: 1000,
-      intervalCap: RATE_LIMIT.perMinute,
-    });
-
-    const results = await Promise.all(
-      chunks.map((chunk) =>
-        parallelQueue.add(async () => {
-          await checkRateLimit();
-
-          const response = await withRetry(
-            async () => client.asyncBatchScrapeUrls(chunk, operation.options),
-            `batch ${operation.id} chunk processing`
-          );
-
-          // Track credits if using cloud API and credits are available
-          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
-            totalCreditsUsed += response.creditsUsed;
-            await updateCreditUsage(response.creditsUsed);
-          }
-
-          operation.progress.completed += chunk.length;
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Batch ${operation.id}: Processed ${operation.progress.completed}/${operation.progress.total} URLs`,
-          });
-
-          // Add delay between chunks
-          await delay(CONFIG.batch.delayBetweenRequests);
-
-          return response;
-        })
-      )
+    // Use library's built-in batch processing
+    const response = await withRetry(
+      async () =>
+        client.asyncBatchScrapeUrls(operation.urls, operation.options),
+      `batch ${operation.id} processing`
     );
 
+    if (!response.success) {
+      throw new Error(response.error || 'Batch operation failed');
+    }
+
+    // Track credits if using cloud API
+    if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+      totalCreditsUsed += response.creditsUsed;
+      await updateCreditUsage(response.creditsUsed);
+    }
+
     operation.status = 'completed';
-    operation.result = results;
+    operation.result = response;
 
     // Log final credit usage for the batch
     if (!FIRE_CRAWL_API_URL) {
@@ -932,7 +861,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
         const { url, ...options } = args;
         try {
-          await checkRateLimit();
           const scrapeStartTime = Date.now();
           server.sendLoggingMessage({
             level: 'info',
@@ -1136,8 +1064,6 @@ ${
           throw new Error('Invalid arguments for fire_crawl_search');
         }
         try {
-          await checkRateLimit();
-
           const response = await withRetry(
             async () => client.search(args.query, args),
             'search operation'
@@ -1187,7 +1113,6 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
         }
 
         try {
-          await checkRateLimit();
           const extractStartTime = Date.now();
 
           server.sendLoggingMessage({
@@ -1353,9 +1278,7 @@ async function runServer() {
 
     server.sendLoggingMessage({
       level: 'info',
-      data: `Configuration: API URL: ${
-        FIRE_CRAWL_API_URL || 'default'
-      }, Rate Limit: ${RATE_LIMIT.perMinute}/minute`,
+      data: `Configuration: API URL: ${FIRE_CRAWL_API_URL || 'default'}`,
     });
 
     console.error('FireCrawl MCP Server running on stdio');
