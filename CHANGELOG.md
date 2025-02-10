@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.3] - 2024-02-05
+
+### Changed
+
+- Removed redundant batch configuration to rely on FireCrawl library's built-in functionality
+- Simplified batch processing logic by leveraging library's native implementation
+- Optimized parallel processing and rate limiting handling
+- Reduced code complexity and potential configuration conflicts
+
+### Technical
+
+- Removed custom `CONFIG.batch` settings (`maxParallelOperations` and `delayBetweenRequests`)
+- Simplified batch operation processing to use library's built-in batch handling
+- Updated server startup logging to remove batch configuration references
+- Maintained credit usage tracking and error handling functionality
+
 ## [1.2.2] - 2025-02-05
 
 ### Fixed
