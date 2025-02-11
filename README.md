@@ -9,7 +9,7 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 ## Features
 
 - Web scraping with JavaScript rendering
-- Batch scraping with parallel processing and queuing
+- Efficient batch processing with built-in rate limiting
 - URL discovery and crawling
 - Web search with content extraction
 - Automatic retries with exponential backoff
@@ -97,10 +97,6 @@ const CONFIG = {
     maxDelay: 10000, // 10 seconds
     backoffFactor: 2,
   },
-  batch: {
-    delayBetweenRequests: 2000, // 2 seconds
-    maxParallelOperations: 3,
-  },
   credit: {
     warningThreshold: 1000,
     criticalThreshold: 100,
@@ -108,14 +104,14 @@ const CONFIG = {
 };
 ```
 
-### Rate Limits
+### Rate Limiting and Batch Processing
 
-The server implements rate limiting to prevent API abuse:
+The server utilizes FireCrawl's built-in rate limiting and batch processing capabilities:
 
-- 3 requests per minute on free tier
-- Automatic retries with exponential backoff
-- Parallel processing for batch operations
-- Higher limits available on paid plans
+- Automatic rate limit handling with exponential backoff
+- Efficient parallel processing for batch operations
+- Smart request queuing and throttling
+- Automatic retries for transient errors
 
 ## Available Tools
 
@@ -142,7 +138,7 @@ Scrape content from a single URL with advanced options.
 
 ### 2. Batch Scrape Tool (`fire_crawl_batch_scrape`)
 
-Scrape multiple URLs with parallel processing and queuing.
+Scrape multiple URLs efficiently with built-in rate limiting and parallel processing.
 
 ```json
 {
