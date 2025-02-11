@@ -677,14 +677,16 @@ const client = new FirecrawlApp({
 // Configuration for retries and monitoring
 const CONFIG = {
   retry: {
-    maxAttempts: 3,
-    initialDelay: 1000,
-    maxDelay: 10000,
-    backoffFactor: 2,
+    maxAttempts: Number(process.env.FIRE_CRAWL_RETRY_MAX_ATTEMPTS) || 3,
+    initialDelay: Number(process.env.FIRE_CRAWL_RETRY_INITIAL_DELAY) || 1000,
+    maxDelay: Number(process.env.FIRE_CRAWL_RETRY_MAX_DELAY) || 10000,
+    backoffFactor: Number(process.env.FIRE_CRAWL_RETRY_BACKOFF_FACTOR) || 2,
   },
   credit: {
-    warningThreshold: 1000,
-    criticalThreshold: 100,
+    warningThreshold:
+      Number(process.env.FIRE_CRAWL_CREDIT_WARNING_THRESHOLD) || 1000,
+    criticalThreshold:
+      Number(process.env.FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD) || 100,
   },
 };
 
