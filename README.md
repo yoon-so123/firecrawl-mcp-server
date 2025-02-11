@@ -9,7 +9,7 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 ## Features
 
 - Web scraping with JavaScript rendering
-- Batch scraping with parallel processing and queuing
+- Efficient batch processing with built-in rate limiting
 - URL discovery and crawling
 - Web search with content extraction
 - Automatic retries with exponential backoff
@@ -39,6 +39,8 @@ npm install -g mcp-server-firecrawl
 
 ### Environment Variables
 
+#### Required for Cloud API
+
 - `FIRE_CRAWL_API_KEY`: Your FireCrawl API key
   - Required when using cloud API (default)
   - Optional when using self-hosted instance with `FIRE_CRAWL_API_URL`
@@ -46,25 +48,51 @@ npm install -g mcp-server-firecrawl
   - Example: `https://firecrawl.your-domain.com`
   - If not provided, the cloud API will be used (requires API key)
 
+#### Optional Configuration
+
+##### Retry Configuration
+
+- `FIRE_CRAWL_RETRY_MAX_ATTEMPTS`: Maximum number of retry attempts (default: 3)
+- `FIRE_CRAWL_RETRY_INITIAL_DELAY`: Initial delay in milliseconds before first retry (default: 1000)
+- `FIRE_CRAWL_RETRY_MAX_DELAY`: Maximum delay in milliseconds between retries (default: 10000)
+- `FIRE_CRAWL_RETRY_BACKOFF_FACTOR`: Exponential backoff multiplier (default: 2)
+
+##### Credit Usage Monitoring
+
+- `FIRE_CRAWL_CREDIT_WARNING_THRESHOLD`: Credit usage warning threshold (default: 1000)
+- `FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD`: Credit usage critical threshold (default: 100)
+
 ### Configuration Examples
 
-For cloud API usage (default):
+For cloud API usage with custom retry and credit monitoring:
 
 ```bash
+# Required for cloud API
 export FIRE_CRAWL_API_KEY=your-api-key
+
+# Optional retry configuration
+export FIRE_CRAWL_RETRY_MAX_ATTEMPTS=5        # Increase max retry attempts
+export FIRE_CRAWL_RETRY_INITIAL_DELAY=2000    # Start with 2s delay
+export FIRE_CRAWL_RETRY_MAX_DELAY=30000       # Maximum 30s delay
+export FIRE_CRAWL_RETRY_BACKOFF_FACTOR=3      # More aggressive backoff
+
+# Optional credit monitoring
+export FIRE_CRAWL_CREDIT_WARNING_THRESHOLD=2000    # Warning at 2000 credits
+export FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD=500    # Critical at 500 credits
 ```
 
-For self-hosted instance without authentication:
+For self-hosted instance:
 
 ```bash
+# Required for self-hosted
 export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
-```
 
-For self-hosted instance with authentication:
+# Optional authentication for self-hosted
+export FIRE_CRAWL_API_KEY=your-api-key  # If your instance requires auth
 
-```bash
-export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
-export FIRE_CRAWL_API_KEY=your-api-key  # Optional for authenticated self-hosted instances
+# Custom retry configuration
+export FIRE_CRAWL_RETRY_MAX_ATTEMPTS=10
+export FIRE_CRAWL_RETRY_INITIAL_DELAY=500     # Start with faster retries
 ```
 
 ### Usage with Claude Desktop
@@ -78,7 +106,15 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "mcp-server-firecrawl"],
       "env": {
-        "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE"
+        "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE",
+
+        "FIRE_CRAWL_RETRY_MAX_ATTEMPTS": "5",
+        "FIRE_CRAWL_RETRY_INITIAL_DELAY": "2000",
+        "FIRE_CRAWL_RETRY_MAX_DELAY": "30000",
+        "FIRE_CRAWL_RETRY_BACKOFF_FACTOR": "3",
+
+        "FIRE_CRAWL_CREDIT_WARNING_THRESHOLD": "2000",
+        "FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD": "500"
       }
     }
   }
@@ -87,35 +123,50 @@ Add this to your `claude_desktop_config.json`:
 
 ### System Configuration
 
-The server includes several configurable parameters:
+The server includes several configurable parameters that can be set via environment variables. Here are the default values if not configured:
 
 ```typescript
 const CONFIG = {
   retry: {
-    maxAttempts: 3,
-    initialDelay: 1000, // 1 second
-    maxDelay: 10000, // 10 seconds
-    backoffFactor: 2,
-  },
-  batch: {
-    delayBetweenRequests: 2000, // 2 seconds
-    maxParallelOperations: 3,
+    maxAttempts: 3, // Number of retry attempts for rate-limited requests
+    initialDelay: 1000, // Initial delay before first retry (in milliseconds)
+    maxDelay: 10000, // Maximum delay between retries (in milliseconds)
+    backoffFactor: 2, // Multiplier for exponential backoff
   },
   credit: {
-    warningThreshold: 1000,
-    criticalThreshold: 100,
+    warningThreshold: 1000, // Warn when credit usage reaches this level
+    criticalThreshold: 100, // Critical alert when credit usage reaches this level
   },
 };
 ```
 
-### Rate Limits
+These configurations control:
 
-The server implements rate limiting to prevent API abuse:
+1. **Retry Behavior**
 
-- 3 requests per minute on free tier
-- Automatic retries with exponential backoff
-- Parallel processing for batch operations
-- Higher limits available on paid plans
+   - Automatically retries failed requests due to rate limits
+   - Uses exponential backoff to avoid overwhelming the API
+   - Example: With default settings, retries will be attempted at:
+     - 1st retry: 1 second delay
+     - 2nd retry: 2 seconds delay
+     - 3rd retry: 4 seconds delay (capped at maxDelay)
+
+2. **Credit Usage Monitoring**
+   - Tracks API credit consumption for cloud API usage
+   - Provides warnings at specified thresholds
+   - Helps prevent unexpected service interruption
+   - Example: With default settings:
+     - Warning at 1000 credits remaining
+     - Critical alert at 100 credits remaining
+
+### Rate Limiting and Batch Processing
+
+The server utilizes FireCrawl's built-in rate limiting and batch processing capabilities:
+
+- Automatic rate limit handling with exponential backoff
+- Efficient parallel processing for batch operations
+- Smart request queuing and throttling
+- Automatic retries for transient errors
 
 ## Available Tools
 
@@ -142,7 +193,7 @@ Scrape content from a single URL with advanced options.
 
 ### 2. Batch Scrape Tool (`fire_crawl_batch_scrape`)
 
-Scrape multiple URLs with parallel processing and queuing.
+Scrape multiple URLs efficiently with built-in rate limiting and parallel processing.
 
 ```json
 {
