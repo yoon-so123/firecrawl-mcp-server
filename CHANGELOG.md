@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.2.4] - 2024-02-05
+
+### Added
+
+- Environment variable support for all configuration options
+- Detailed configuration documentation in README
+
+### Changed
+
+- Made retry and credit monitoring settings configurable via environment variables:
+  - `FIRE_CRAWL_RETRY_MAX_ATTEMPTS`
+  - `FIRE_CRAWL_RETRY_INITIAL_DELAY`
+  - `FIRE_CRAWL_RETRY_MAX_DELAY`
+  - `FIRE_CRAWL_RETRY_BACKOFF_FACTOR`
+  - `FIRE_CRAWL_CREDIT_WARNING_THRESHOLD`
+  - `FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD`
+- Enhanced configuration examples with detailed comments and use cases
+- Improved documentation for retry behavior and credit monitoring
+
+### Documentation
+
+- Added comprehensive configuration examples for both cloud and self-hosted setups
+- Added detailed explanations of retry behavior with timing examples
+- Added credit monitoring threshold explanations
+- Updated Claude Desktop configuration documentation
+
 ## [1.2.3] - 2024-02-05
 
 ### Changed
