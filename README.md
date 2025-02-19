@@ -23,10 +23,10 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 
 ### Installing via Smithery
 
-To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/mcp-server-firecrawl):
+To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
 
 ```bash
-npx -y @smithery/cli install mcp-server-firecrawl --client claude
+npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
 ```
 
 ### Manual Installation
