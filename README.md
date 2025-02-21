@@ -19,6 +19,12 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 
 ## Installation
 
+### Running with npx
+
+```bash
+npx -y firecrawl-mcp
+```
+
 ### Manual Installation
 
 ```bash
@@ -32,6 +38,26 @@ To install FireCrawl for Claude Desktop automatically via [Smithery](https://smi
 ```bash
 npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
 ```
+
+
+### Running on Cursor
+
+Configuring Cursor 🖥️
+Note: Requires Cursor version 0.45.6+
+
+To configure FireCrawl MCP in Cursor:
+
+1. Open Cursor Settings
+2. Go to Features > MCP Servers 
+3. Click "+ Add New MCP Server"
+4. Enter the following:
+   - Name: "firecrawl-mcp" (or your preferred name)
+   - Type: "command"
+   - Command: `env FIRECRAWL_API_KEY=your-api-key npx -y firecrawl-mcp`
+
+Replace `your-api-key` with your FireCrawl API key.
+
+After adding, refresh the MCP server list to see the new tools. The Composer Agent will automatically use FireCrawl MCP when appropriate, but you can explicitly request it by describing your web scraping needs. Access the Composer via Command+L (Mac), select "Agent" next to the submit button, and enter your query.
 
 ## Configuration
 
