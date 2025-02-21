@@ -4,7 +4,7 @@
 
 A Model Context Protocol (MCP) server implementation that integrates with [Firecrawl](https://github.com/mendableai/firecrawl) for web scraping capabilities.\
 
-Big thanks to @vrknetha @cawstudios for the initial implementation!
+Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
 
 ## Features
 
