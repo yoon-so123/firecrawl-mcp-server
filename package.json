@@ -1,6 +1,6 @@
 {
   "name": "mcp-server-firecrawl",
-  "version": "1.2.4",
+  "version": "1.3.0",
   "description": "MCP server for FireCrawl web scraping integration. Supports both cloud and self-hosted instances. Features include web scraping, batch processing, structured data extraction, and LLM-powered content analysis.",
   "type": "module",
   "bin": "dist/src/index.js",
@@ -25,6 +25,7 @@
   "dependencies": {
     "@mendable/firecrawl-js": "^1.16.0",
     "@modelcontextprotocol/sdk": "^1.4.1",
+    "dotenv": "^16.4.7",
     "p-queue": "^8.0.1"
   },
   "devDependencies": {
@@ -53,11 +54,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vrknetha/mcp-server-firecrawl.git"
+    "url": "git+https://github.com/mendableai/firecrawl-mcp-server.git"
   },
   "author": "vrknetha",
   "bugs": {
-    "url": "https://github.com/vrknetha/mcp-server-firecrawl/issues"
+    "url": "https://github.com/mendableai/firecrawl-mcp-server/issues"
   },
-  "homepage": "https://github.com/vrknetha/mcp-server-firecrawl#readme"
+  "homepage": "https://github.com/mendableai/firecrawl-mcp-server#readme"
 }

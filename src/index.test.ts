@@ -124,7 +124,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_scrape',
+        name: 'firecrawl_scrape',
         arguments: { url, ...options },
       },
     });
@@ -152,7 +152,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_batch_scrape',
+        name: 'firecrawl_batch_scrape',
         arguments: { urls, options },
       },
     });
@@ -186,7 +186,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_search',
+        name: 'firecrawl_search',
         arguments: { query, scrapeOptions },
       },
     });
@@ -209,7 +209,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_crawl',
+        name: 'firecrawl_crawl',
         arguments: { url, ...options },
       },
     });
@@ -231,7 +231,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_scrape',
+        name: 'firecrawl_scrape',
         arguments: { url },
       },
     });
@@ -252,7 +252,7 @@ describe('FireCrawl Tool Tests', () => {
     const response = await requestHandler({
       method: 'call_tool',
       params: {
-        name: 'fire_crawl_scrape',
+        name: 'firecrawl_scrape',
         arguments: { url },
       },
     });
@@ -270,7 +270,7 @@ async function handleRequest(
 ) {
   try {
     switch (name) {
-      case 'fire_crawl_scrape': {
+      case 'firecrawl_scrape': {
         const response = await client.scrapeUrl(args.url, args);
         if (!response.success) {
           throw new Error(response.error || 'Scraping failed');
@@ -283,7 +283,7 @@ async function handleRequest(
         };
       }
 
-      case 'fire_crawl_batch_scrape': {
+      case 'firecrawl_batch_scrape': {
         const response = await client.asyncBatchScrapeUrls(
           args.urls,
           args.options
@@ -292,14 +292,14 @@ async function handleRequest(
           content: [
             {
               type: 'text',
-              text: `Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress.`,
+              text: `Batch operation queued with ID: batch_1. Use firecrawl_check_batch_status to check progress.`,
             },
           ],
           isError: false,
         };
       }
 
-      case 'fire_crawl_search': {
+      case 'firecrawl_search': {
         const response = await client.search(args.query, args.scrapeOptions);
         if (!response.success) {
           throw new Error(response.error || 'Search failed');
@@ -320,7 +320,7 @@ async function handleRequest(
         };
       }
 
-      case 'fire_crawl_crawl': {
+      case 'firecrawl_crawl': {
         const response = await client.asyncCrawlUrl(args.url, args);
         if (!response.success) {
           throw new Error(response.error);

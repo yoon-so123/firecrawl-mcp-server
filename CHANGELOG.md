@@ -10,12 +10,12 @@
 ### Changed
 
 - Made retry and credit monitoring settings configurable via environment variables:
-  - `FIRE_CRAWL_RETRY_MAX_ATTEMPTS`
-  - `FIRE_CRAWL_RETRY_INITIAL_DELAY`
-  - `FIRE_CRAWL_RETRY_MAX_DELAY`
-  - `FIRE_CRAWL_RETRY_BACKOFF_FACTOR`
-  - `FIRE_CRAWL_CREDIT_WARNING_THRESHOLD`
-  - `FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD`
+  - `FIRECRAWL_RETRY_MAX_ATTEMPTS`
+  - `FIRECRAWL_RETRY_INITIAL_DELAY`
+  - `FIRECRAWL_RETRY_MAX_DELAY`
+  - `FIRECRAWL_RETRY_BACKOFF_FACTOR`
+  - `FIRECRAWL_CREDIT_WARNING_THRESHOLD`
+  - `FIRECRAWL_CREDIT_CRITICAL_THRESHOLD`
 - Enhanced configuration examples with detailed comments and use cases
 - Improved documentation for retry behavior and credit monitoring
 
@@ -64,9 +64,9 @@
 - Integrated credit usage monitoring with warning thresholds
 - Enhanced content validation with configurable criteria
 - Added comprehensive logging system for operations and errors
-- New search tool (`fire_crawl_search`) for web search with content extraction
+- New search tool (`firecrawl_search`) for web search with content extraction
 - Support for self-hosted FireCrawl instances via optional API URL configuration
-  - New `FIRE_CRAWL_API_URL` environment variable
+  - New `FIRECRAWL_API_URL` environment variable
   - Automatic fallback to cloud API
   - Improved error messages for self-hosted instances
 

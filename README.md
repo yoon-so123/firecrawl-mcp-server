@@ -41,10 +41,10 @@ npm install -g mcp-server-firecrawl
 
 #### Required for Cloud API
 
-- `FIRE_CRAWL_API_KEY`: Your FireCrawl API key
+- `FIRECRAWL_API_KEY`: Your FireCrawl API key
   - Required when using cloud API (default)
-  - Optional when using self-hosted instance with `FIRE_CRAWL_API_URL`
-- `FIRE_CRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
+  - Optional when using self-hosted instance with `FIRECRAWL_API_URL`
+- `FIRECRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
   - Example: `https://firecrawl.your-domain.com`
   - If not provided, the cloud API will be used (requires API key)
 
@@ -52,15 +52,15 @@ npm install -g mcp-server-firecrawl
 
 ##### Retry Configuration
 
-- `FIRE_CRAWL_RETRY_MAX_ATTEMPTS`: Maximum number of retry attempts (default: 3)
-- `FIRE_CRAWL_RETRY_INITIAL_DELAY`: Initial delay in milliseconds before first retry (default: 1000)
-- `FIRE_CRAWL_RETRY_MAX_DELAY`: Maximum delay in milliseconds between retries (default: 10000)
-- `FIRE_CRAWL_RETRY_BACKOFF_FACTOR`: Exponential backoff multiplier (default: 2)
+- `FIRECRAWL_RETRY_MAX_ATTEMPTS`: Maximum number of retry attempts (default: 3)
+- `FIRECRAWL_RETRY_INITIAL_DELAY`: Initial delay in milliseconds before first retry (default: 1000)
+- `FIRECRAWL_RETRY_MAX_DELAY`: Maximum delay in milliseconds between retries (default: 10000)
+- `FIRECRAWL_RETRY_BACKOFF_FACTOR`: Exponential backoff multiplier (default: 2)
 
 ##### Credit Usage Monitoring
 
-- `FIRE_CRAWL_CREDIT_WARNING_THRESHOLD`: Credit usage warning threshold (default: 1000)
-- `FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD`: Credit usage critical threshold (default: 100)
+- `FIRECRAWL_CREDIT_WARNING_THRESHOLD`: Credit usage warning threshold (default: 1000)
+- `FIRECRAWL_CREDIT_CRITICAL_THRESHOLD`: Credit usage critical threshold (default: 100)
 
 ### Configuration Examples
 
@@ -68,31 +68,31 @@ For cloud API usage with custom retry and credit monitoring:
 
 ```bash
 # Required for cloud API
-export FIRE_CRAWL_API_KEY=your-api-key
+export FIRECRAWL_API_KEY=your-api-key
 
 # Optional retry configuration
-export FIRE_CRAWL_RETRY_MAX_ATTEMPTS=5        # Increase max retry attempts
-export FIRE_CRAWL_RETRY_INITIAL_DELAY=2000    # Start with 2s delay
-export FIRE_CRAWL_RETRY_MAX_DELAY=30000       # Maximum 30s delay
-export FIRE_CRAWL_RETRY_BACKOFF_FACTOR=3      # More aggressive backoff
+export FIRECRAWL_RETRY_MAX_ATTEMPTS=5        # Increase max retry attempts
+export FIRECRAWL_RETRY_INITIAL_DELAY=2000    # Start with 2s delay
+export FIRECRAWL_RETRY_MAX_DELAY=30000       # Maximum 30s delay
+export FIRECRAWL_RETRY_BACKOFF_FACTOR=3      # More aggressive backoff
 
 # Optional credit monitoring
-export FIRE_CRAWL_CREDIT_WARNING_THRESHOLD=2000    # Warning at 2000 credits
-export FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD=500    # Critical at 500 credits
+export FIRECRAWL_CREDIT_WARNING_THRESHOLD=2000    # Warning at 2000 credits
+export FIRECRAWL_CREDIT_CRITICAL_THRESHOLD=500    # Critical at 500 credits
 ```
 
 For self-hosted instance:
 
 ```bash
 # Required for self-hosted
-export FIRE_CRAWL_API_URL=https://firecrawl.your-domain.com
+export FIRECRAWL_API_URL=https://firecrawl.your-domain.com
 
 # Optional authentication for self-hosted
-export FIRE_CRAWL_API_KEY=your-api-key  # If your instance requires auth
+export FIRECRAWL_API_KEY=your-api-key  # If your instance requires auth
 
 # Custom retry configuration
-export FIRE_CRAWL_RETRY_MAX_ATTEMPTS=10
-export FIRE_CRAWL_RETRY_INITIAL_DELAY=500     # Start with faster retries
+export FIRECRAWL_RETRY_MAX_ATTEMPTS=10
+export FIRECRAWL_RETRY_INITIAL_DELAY=500     # Start with faster retries
 ```
 
 ### Usage with Claude Desktop
@@ -106,15 +106,15 @@ Add this to your `claude_desktop_config.json`:
       "command": "npx",
       "args": ["-y", "mcp-server-firecrawl"],
       "env": {
-        "FIRE_CRAWL_API_KEY": "YOUR_API_KEY_HERE",
+        "FIRECRAWL_API_KEY": "YOUR_API_KEY_HERE",
 
-        "FIRE_CRAWL_RETRY_MAX_ATTEMPTS": "5",
-        "FIRE_CRAWL_RETRY_INITIAL_DELAY": "2000",
-        "FIRE_CRAWL_RETRY_MAX_DELAY": "30000",
-        "FIRE_CRAWL_RETRY_BACKOFF_FACTOR": "3",
+        "FIRECRAWL_RETRY_MAX_ATTEMPTS": "5",
+        "FIRECRAWL_RETRY_INITIAL_DELAY": "2000",
+        "FIRECRAWL_RETRY_MAX_DELAY": "30000",
+        "FIRECRAWL_RETRY_BACKOFF_FACTOR": "3",
 
-        "FIRE_CRAWL_CREDIT_WARNING_THRESHOLD": "2000",
-        "FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD": "500"
+        "FIRECRAWL_CREDIT_WARNING_THRESHOLD": "2000",
+        "FIRECRAWL_CREDIT_CRITICAL_THRESHOLD": "500"
       }
     }
   }
@@ -170,13 +170,13 @@ The server utilizes FireCrawl's built-in rate limiting and batch processing capa
 
 ## Available Tools
 
-### 1. Scrape Tool (`fire_crawl_scrape`)
+### 1. Scrape Tool (`firecrawl_scrape`)
 
 Scrape content from a single URL with advanced options.
 
 ```json
 {
-  "name": "fire_crawl_scrape",
+  "name": "firecrawl_scrape",
   "arguments": {
     "url": "https://example.com",
     "formats": ["markdown"],
@@ -191,13 +191,13 @@ Scrape content from a single URL with advanced options.
 }
 ```
 
-### 2. Batch Scrape Tool (`fire_crawl_batch_scrape`)
+### 2. Batch Scrape Tool (`firecrawl_batch_scrape`)
 
 Scrape multiple URLs efficiently with built-in rate limiting and parallel processing.
 
 ```json
 {
-  "name": "fire_crawl_batch_scrape",
+  "name": "firecrawl_batch_scrape",
   "arguments": {
     "urls": ["https://example1.com", "https://example2.com"],
     "options": {
@@ -215,33 +215,33 @@ Response includes operation ID for status checking:
   "content": [
     {
       "type": "text",
-      "text": "Batch operation queued with ID: batch_1. Use fire_crawl_check_batch_status to check progress."
+      "text": "Batch operation queued with ID: batch_1. Use firecrawl_check_batch_status to check progress."
     }
   ],
   "isError": false
 }
 ```
 
-### 3. Check Batch Status (`fire_crawl_check_batch_status`)
+### 3. Check Batch Status (`firecrawl_check_batch_status`)
 
 Check the status of a batch operation.
 
 ```json
 {
-  "name": "fire_crawl_check_batch_status",
+  "name": "firecrawl_check_batch_status",
   "arguments": {
     "id": "batch_1"
   }
 }
 ```
 
-### 4. Search Tool (`fire_crawl_search`)
+### 4. Search Tool (`firecrawl_search`)
 
 Search the web and optionally extract content from search results.
 
 ```json
 {
-  "name": "fire_crawl_search",
+  "name": "firecrawl_search",
   "arguments": {
     "query": "your search query",
     "limit": 5,
@@ -255,13 +255,13 @@ Search the web and optionally extract content from search results.
 }
 ```
 
-### 5. Crawl Tool (`fire_crawl_crawl`)
+### 5. Crawl Tool (`firecrawl_crawl`)
 
 Start an asynchronous crawl with advanced options.
 
 ```json
 {
-  "name": "fire_crawl_crawl",
+  "name": "firecrawl_crawl",
   "arguments": {
     "url": "https://example.com",
     "maxDepth": 2,
@@ -272,13 +272,13 @@ Start an asynchronous crawl with advanced options.
 }
 ```
 
-### 6. Extract Tool (`fire_crawl_extract`)
+### 6. Extract Tool (`firecrawl_extract`)
 
 Extract structured information from web pages using LLM capabilities. Supports both cloud AI and self-hosted LLM extraction.
 
 ```json
 {
-  "name": "fire_crawl_extract",
+  "name": "firecrawl_extract",
   "arguments": {
     "urls": ["https://example.com/page1", "https://example.com/page2"],
     "prompt": "Extract product information including name, price, and description",

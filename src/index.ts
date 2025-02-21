@@ -15,9 +15,13 @@ import FirecrawlApp, {
 } from '@mendable/firecrawl-js';
 import PQueue from 'p-queue';
 
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 // Tool definitions
 const SCRAPE_TOOL: Tool = {
-  name: 'fire_crawl_scrape',
+  name: 'firecrawl_scrape',
   description:
     'Scrape a single webpage with advanced options for content extraction. ' +
     'Supports various formats including markdown, HTML, and screenshots. ' +
@@ -173,7 +177,7 @@ const SCRAPE_TOOL: Tool = {
 };
 
 const MAP_TOOL: Tool = {
-  name: 'fire_crawl_map',
+  name: 'firecrawl_map',
   description:
     'Discover URLs from a starting point. Can use both sitemap.xml and HTML link discovery.',
   inputSchema: {
@@ -209,7 +213,7 @@ const MAP_TOOL: Tool = {
 };
 
 const CRAWL_TOOL: Tool = {
-  name: 'fire_crawl_crawl',
+  name: 'firecrawl_crawl',
   description:
     'Start an asynchronous crawl of multiple pages from a starting URL. ' +
     'Supports depth control, path filtering, and webhook notifications.',
@@ -321,7 +325,7 @@ const CRAWL_TOOL: Tool = {
 };
 
 const BATCH_SCRAPE_TOOL: Tool = {
-  name: 'fire_crawl_batch_scrape',
+  name: 'firecrawl_batch_scrape',
   description:
     'Scrape multiple URLs in batch mode. Returns a job ID that can be used to check status.',
   inputSchema: {
@@ -372,7 +376,7 @@ const BATCH_SCRAPE_TOOL: Tool = {
 };
 
 const CHECK_BATCH_STATUS_TOOL: Tool = {
-  name: 'fire_crawl_check_batch_status',
+  name: 'firecrawl_check_batch_status',
   description: 'Check the status of a batch scraping job.',
   inputSchema: {
     type: 'object',
@@ -387,7 +391,7 @@ const CHECK_BATCH_STATUS_TOOL: Tool = {
 };
 
 const CHECK_CRAWL_STATUS_TOOL: Tool = {
-  name: 'fire_crawl_check_crawl_status',
+  name: 'firecrawl_check_crawl_status',
   description: 'Check the status of a crawl job.',
   inputSchema: {
     type: 'object',
@@ -402,7 +406,7 @@ const CHECK_CRAWL_STATUS_TOOL: Tool = {
 };
 
 const SEARCH_TOOL: Tool = {
-  name: 'fire_crawl_search',
+  name: 'firecrawl_search',
   description:
     'Search and retrieve content from web pages with optional scraping. ' +
     'Returns SERP results by default (url, title, description) or full page content when scrapeOptions are provided.',
@@ -476,7 +480,7 @@ const SEARCH_TOOL: Tool = {
 };
 
 const EXTRACT_TOOL: Tool = {
-  name: 'fire_crawl_extract',
+  name: 'firecrawl_extract',
   description:
     'Extract structured information from web pages using LLM. ' +
     'Supports both cloud AI and self-hosted LLM extraction.',
@@ -657,36 +661,36 @@ const server = new Server(
 );
 
 // Get optional API URL
-const FIRE_CRAWL_API_URL = process.env.FIRE_CRAWL_API_URL;
-const FIRE_CRAWL_API_KEY = process.env.FIRE_CRAWL_API_KEY;
+const FIRECRAWL_API_URL = process.env.FIRECRAWL_API_URL;
+const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
 // Check if API key is required (only for cloud service)
-if (!FIRE_CRAWL_API_URL && !FIRE_CRAWL_API_KEY) {
+if (!FIRECRAWL_API_URL && !FIRECRAWL_API_KEY) {
   console.error(
-    'Error: FIRE_CRAWL_API_KEY environment variable is required when using the cloud service'
+    'Error: FIRECRAWL_API_KEY environment variable is required when using the cloud service'
   );
   process.exit(1);
 }
 
 // Initialize FireCrawl client with optional API URL
 const client = new FirecrawlApp({
-  apiKey: FIRE_CRAWL_API_KEY || '',
-  ...(FIRE_CRAWL_API_URL ? { apiUrl: FIRE_CRAWL_API_URL } : {}),
+  apiKey: FIRECRAWL_API_KEY || '',
+  ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
 });
 
 // Configuration for retries and monitoring
 const CONFIG = {
   retry: {
-    maxAttempts: Number(process.env.FIRE_CRAWL_RETRY_MAX_ATTEMPTS) || 3,
-    initialDelay: Number(process.env.FIRE_CRAWL_RETRY_INITIAL_DELAY) || 1000,
-    maxDelay: Number(process.env.FIRE_CRAWL_RETRY_MAX_DELAY) || 10000,
-    backoffFactor: Number(process.env.FIRE_CRAWL_RETRY_BACKOFF_FACTOR) || 2,
+    maxAttempts: Number(process.env.FIRECRAWL_RETRY_MAX_ATTEMPTS) || 3,
+    initialDelay: Number(process.env.FIRECRAWL_RETRY_INITIAL_DELAY) || 1000,
+    maxDelay: Number(process.env.FIRECRAWL_RETRY_MAX_DELAY) || 10000,
+    backoffFactor: Number(process.env.FIRECRAWL_RETRY_BACKOFF_FACTOR) || 2,
   },
   credit: {
     warningThreshold:
-      Number(process.env.FIRE_CRAWL_CREDIT_WARNING_THRESHOLD) || 1000,
+      Number(process.env.FIRECRAWL_CREDIT_WARNING_THRESHOLD) || 1000,
     criticalThreshold:
-      Number(process.env.FIRE_CRAWL_CREDIT_CRITICAL_THRESHOLD) || 100,
+      Number(process.env.FIRECRAWL_CREDIT_CRITICAL_THRESHOLD) || 100,
   },
 };
 
@@ -801,7 +805,7 @@ async function processBatchOperation(
     }
 
     // Track credits if using cloud API
-    if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+    if (!FIRECRAWL_API_URL && hasCredits(response)) {
       totalCreditsUsed += response.creditsUsed;
       await updateCreditUsage(response.creditsUsed);
     }
@@ -810,7 +814,7 @@ async function processBatchOperation(
     operation.result = response;
 
     // Log final credit usage for the batch
-    if (!FIRE_CRAWL_API_URL) {
+    if (!FIRECRAWL_API_URL) {
       server.sendLoggingMessage({
         level: 'info',
         data: `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`,
@@ -857,9 +861,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     switch (name) {
-      case 'fire_crawl_scrape': {
+      case 'firecrawl_scrape': {
         if (!isScrapeOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_scrape');
+          throw new Error('Invalid arguments for firecrawl_scrape');
         }
         const { url, ...options } = args;
         try {
@@ -903,9 +907,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
-      case 'fire_crawl_map': {
+      case 'firecrawl_map': {
         if (!isMapOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_map');
+          throw new Error('Invalid arguments for firecrawl_map');
         }
         const { url, ...options } = args;
         const response = await client.mapUrl(url, options);
@@ -921,9 +925,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      case 'fire_crawl_batch_scrape': {
+      case 'firecrawl_batch_scrape': {
         if (!isBatchScrapeOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_batch_scrape');
+          throw new Error('Invalid arguments for firecrawl_batch_scrape');
         }
 
         try {
@@ -953,7 +957,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: 'text',
-                text: `Batch operation queued with ID: ${operationId}. Use fire_crawl_check_batch_status to check progress.`,
+                text: `Batch operation queued with ID: ${operationId}. Use firecrawl_check_batch_status to check progress.`,
               },
             ],
             isError: false,
@@ -970,10 +974,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
       }
 
-      case 'fire_crawl_check_batch_status': {
+      case 'firecrawl_check_batch_status': {
         if (!isStatusCheckOptions(args)) {
           throw new Error(
-            'Invalid arguments for fire_crawl_check_batch_status'
+            'Invalid arguments for firecrawl_check_batch_status'
           );
         }
 
@@ -1006,9 +1010,9 @@ ${
         };
       }
 
-      case 'fire_crawl_crawl': {
+      case 'firecrawl_crawl': {
         if (!isCrawlOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_crawl');
+          throw new Error('Invalid arguments for firecrawl_crawl');
         }
         const { url, ...options } = args;
 
@@ -1022,7 +1026,7 @@ ${
         }
 
         // Monitor credits for cloud API
-        if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+        if (!FIRECRAWL_API_URL && hasCredits(response)) {
           await updateCreditUsage(response.creditsUsed);
         }
 
@@ -1037,10 +1041,10 @@ ${
         };
       }
 
-      case 'fire_crawl_check_crawl_status': {
+      case 'firecrawl_check_crawl_status': {
         if (!isStatusCheckOptions(args)) {
           throw new Error(
-            'Invalid arguments for fire_crawl_check_crawl_status'
+            'Invalid arguments for firecrawl_check_crawl_status'
           );
         }
         const response = await client.checkCrawlStatus(args.id);
@@ -1061,9 +1065,9 @@ ${
         };
       }
 
-      case 'fire_crawl_search': {
+      case 'firecrawl_search': {
         if (!isSearchOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_search');
+          throw new Error('Invalid arguments for firecrawl_search');
         }
         try {
           const response = await withRetry(
@@ -1078,7 +1082,7 @@ ${
           }
 
           // Monitor credits for cloud API
-          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+          if (!FIRECRAWL_API_URL && hasCredits(response)) {
             await updateCreditUsage(response.creditsUsed);
           }
 
@@ -1109,9 +1113,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
         }
       }
 
-      case 'fire_crawl_extract': {
+      case 'firecrawl_extract': {
         if (!isExtractOptions(args)) {
-          throw new Error('Invalid arguments for fire_crawl_extract');
+          throw new Error('Invalid arguments for firecrawl_extract');
         }
 
         try {
@@ -1123,7 +1127,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           });
 
           // Log if using self-hosted instance
-          if (FIRE_CRAWL_API_URL) {
+          if (FIRECRAWL_API_URL) {
             server.sendLoggingMessage({
               level: 'info',
               data: 'Using self-hosted instance for extraction',
@@ -1152,7 +1156,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           const response = extractResponse as ExtractResponse;
 
           // Monitor credits for cloud API
-          if (!FIRE_CRAWL_API_URL && hasCredits(response)) {
+          if (!FIRECRAWL_API_URL && hasCredits(response)) {
             await updateCreditUsage(response.creditsUsed || 0);
           }
 
@@ -1187,7 +1191,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
 
           // Special handling for self-hosted instance errors
           if (
-            FIRE_CRAWL_API_URL &&
+            FIRECRAWL_API_URL &&
             errorMessage.toLowerCase().includes('not supported')
           ) {
             server.sendLoggingMessage({
@@ -1280,7 +1284,7 @@ async function runServer() {
 
     server.sendLoggingMessage({
       level: 'info',
-      data: `Configuration: API URL: ${FIRE_CRAWL_API_URL || 'default'}`,
+      data: `Configuration: API URL: ${FIRECRAWL_API_URL || 'default'}`,
     });
 
     console.error('FireCrawl MCP Server running on stdio');
