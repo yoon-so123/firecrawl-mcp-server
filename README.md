@@ -23,7 +23,7 @@ Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://ca
 ### Running with npx
 
 ```bash
-npx -y firecrawl-mcp
+env FIRECRAWL_API_KEY=fc-YOUR_API_KEY npx -y firecrawl-mcp
 ```
 
 ### Manual Installation
