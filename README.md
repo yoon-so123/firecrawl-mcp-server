@@ -6,7 +6,7 @@ Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://ca
 
 ## Features
 
-- Scrape, crawl, map, extract and batch scrape support
+- Scrape, crawl, search, extract and batch scrape support
 - Web scraping with JS rendering
 - URL discovery and crawling
 - Web search with content extraction
