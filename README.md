@@ -32,15 +32,6 @@ npx -y firecrawl-mcp
 npm install -g firecrawl-mcp
 ```
 
-### Installing via Smithery (Legacy)
-
-To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
-
-```bash
-npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
-```
-
-
 ### Running on Cursor
 
 Configuring Cursor 🖥️
@@ -59,6 +50,15 @@ To configure FireCrawl MCP in Cursor:
 Replace `your-api-key` with your FireCrawl API key.
 
 After adding, refresh the MCP server list to see the new tools. The Composer Agent will automatically use FireCrawl MCP when appropriate, but you can explicitly request it by describing your web scraping needs. Access the Composer via Command+L (Mac), select "Agent" next to the submit button, and enter your query.
+
+
+### Installing via Smithery (Legacy)
+
+To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
+
+```bash
+npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
+```
 
 ## Configuration
 
