@@ -2,7 +2,9 @@
 
 [![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
-A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
+A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.\
+
+Big thanks to @vrknetha @cawstudios for the initial implementation!
 
 ## Features
 
