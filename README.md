@@ -4,8 +4,6 @@
 
 A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.
 
-<a href="https://glama.ai/mcp/servers/57mideuljt"><img width="380" height="200" src="https://glama.ai/mcp/servers/57mideuljt/badge" alt="mcp-server-firecrawl MCP server" /></a>
-
 ## Features
 
 - Web scraping with JavaScript rendering
@@ -21,18 +19,18 @@ A Model Context Protocol (MCP) server implementation that integrates with FireCr
 
 ## Installation
 
+### Manual Installation
+
+```bash
+npm install -g firecrawl-mcp
+```
+
 ### Installing via Smithery
 
 To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
 
 ```bash
 npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
-```
-
-### Manual Installation
-
-```bash
-npm install -g mcp-server-firecrawl
 ```
 
 ## Configuration
