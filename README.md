@@ -1,18 +1,19 @@
-# FireCrawl MCP Server
+# Firecrawl MCP Server
 
 [![smithery badge](https://smithery.ai/badge/mcp-server-firecrawl)](https://smithery.ai/server/mcp-server-firecrawl)
 
-A Model Context Protocol (MCP) server implementation that integrates with FireCrawl for advanced web scraping capabilities.\
+A Model Context Protocol (MCP) server implementation that integrates with [Firecrawl](https://github.com/mendableai/firecrawl) for web scraping capabilities.\
 
 Big thanks to @vrknetha @cawstudios for the initial implementation!
 
 ## Features
 
-- Web scraping with JavaScript rendering
-- Efficient batch processing with built-in rate limiting
+- Scrape, crawl, map, extract and batch scrape support
+- Web scraping with JS rendering
 - URL discovery and crawling
 - Web search with content extraction
 - Automatic retries with exponential backoff
+- - Efficient batch processing with built-in rate limiting
 - Credit usage monitoring for cloud API
 - Comprehensive logging system
 - Support for cloud and self-hosted FireCrawl instances
