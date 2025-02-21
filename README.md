@@ -32,7 +32,7 @@ npx -y firecrawl-mcp
 npm install -g firecrawl-mcp
 ```
 
-### Installing via Smithery
+### Installing via Smithery (Legacy)
 
 To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
 
