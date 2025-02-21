@@ -649,8 +649,8 @@ function isExtractOptions(args: unknown): args is ExtractArgs {
 // Server implementation
 const server = new Server(
   {
-    name: 'fire-crawl',
-    version: '0.1.0',
+    name: 'firecrawl-mcp',
+    version: '1.3.2',
   },
   {
     capabilities: {
