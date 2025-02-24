@@ -47,6 +47,8 @@ To configure FireCrawl MCP in Cursor:
    - Type: "command"
    - Command: `env FIRECRAWL_API_KEY=your-api-key npx -y firecrawl-mcp`
 
+> If you are using Windows and are running into issues, try `cmd /c "set FIRECRAWL_API_KEY=your-api-key && npx -y firecrawl-mcp"`
+
 Replace `your-api-key` with your FireCrawl API key.
 
 After adding, refresh the MCP server list to see the new tools. The Composer Agent will automatically use FireCrawl MCP when appropriate, but you can explicitly request it by describing your web scraping needs. Access the Composer via Command+L (Mac), select "Agent" next to the submit button, and enter your query.
