@@ -55,7 +55,7 @@ After adding, refresh the MCP server list to see the new tools. The Composer Age
 
 ### Running on Windsurf
 
-Add this to your `claude_desktop_config.json`:
+Add this to your `./codeium/windsurf/model_config.json`:
 
 ```json
 {
