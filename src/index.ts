@@ -521,6 +521,37 @@ const EXTRACT_TOOL: Tool = {
   },
 };
 
+const DEEP_RESEARCH_TOOL: Tool = {
+  name: 'firecrawl_deep_research',
+  description: 'Conduct deep research on a query using web crawling, search, and AI analysis.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'The query to research',
+      },
+      maxDepth: {
+        type: 'number',
+        description: 'Maximum depth of research iterations (1-10)',
+      },
+      timeLimit: {
+        type: 'number',
+        description: 'Time limit in seconds (30-300)',
+      },
+      maxUrls: {
+        type: 'number',
+        description: 'Maximum number of URLs to analyze (1-1000)',
+      },
+      __experimental_streamSteps: {
+        type: 'boolean',
+        description: 'Experimental flag for streaming steps',
+      },
+    },
+    required: ['query'],
+  },
+};
+
 // Type definitions
 interface BatchScrapeOptions {
   urls: string[];
@@ -842,6 +873,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     CHECK_CRAWL_STATUS_TOOL,
     SEARCH_TOOL,
     EXTRACT_TOOL,
+    DEEP_RESEARCH_TOOL,
   ],
 }));
 
@@ -1209,6 +1241,74 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             };
           }
 
+          return {
+            content: [{ type: 'text', text: errorMessage }],
+            isError: true,
+          };
+        }
+      }
+
+      case 'firecrawl_deep_research': {
+        if (!args || typeof args !== 'object' || !('query' in args)) {
+          throw new Error('Invalid arguments for firecrawl_deep_research');
+        }
+
+        try {
+          const researchStartTime = Date.now();
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Starting deep research for query: ${args.query}`,
+          });
+
+          const response = await client.deepResearch(
+            args.query as string,
+            {
+              maxDepth: args.maxDepth as number,
+              timeLimit: args.timeLimit as number,
+              maxUrls: args.maxUrls as number,
+            },
+            // Activity callback
+            (activity) => {
+              server.sendLoggingMessage({
+                level: 'info',
+                data: `Research activity: ${activity.message} (Depth: ${activity.depth})`,
+              });
+            },
+            // Source callback
+            (source) => {
+              server.sendLoggingMessage({
+                level: 'info',
+                data: `Research source found: ${source.url}${source.title ? ` - ${source.title}` : ''}`,
+              });
+            }
+          );
+
+          // Log performance metrics
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Deep research completed in ${Date.now() - researchStartTime}ms`,
+          });
+
+          if (!response.success) {
+            throw new Error(response.error || 'Deep research failed');
+          }
+
+          // Format the results
+          const formattedResponse = {
+            finalAnalysis: response.data.finalAnalysis,
+            activities: response.activities,
+            sources: response.sources,
+            currentDepth: response.currentDepth,
+            maxDepth: response.maxDepth,
+            summaries: response.summaries || [],
+          };
+
+          return {
+            content: [{ type: 'text', text: formattedResponse.finalAnalysis }],
+            isError: false,
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           return {
             content: [{ type: 'text', text: errorMessage }],
             isError: true,
