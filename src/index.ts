@@ -542,11 +542,7 @@ const DEEP_RESEARCH_TOOL: Tool = {
       maxUrls: {
         type: 'number',
         description: 'Maximum number of URLs to analyze (1-1000)',
-      },
-      __experimental_streamSteps: {
-        type: 'boolean',
-        description: 'Experimental flag for streaming steps',
-      },
+      }
     },
     required: ['query'],
   },
@@ -1296,11 +1292,8 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           // Format the results
           const formattedResponse = {
             finalAnalysis: response.data.finalAnalysis,
-            activities: response.activities,
-            sources: response.sources,
-            currentDepth: response.currentDepth,
-            maxDepth: response.maxDepth,
-            summaries: response.summaries || [],
+            activities: response.data.activities,
+            sources: response.data.sources,
           };
 
           return {
