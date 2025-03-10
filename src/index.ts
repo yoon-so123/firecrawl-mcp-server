@@ -915,13 +915,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             throw new Error(response.error || 'Scraping failed');
           }
 
-          const content =
-            'markdown' in response
-              ? response.markdown || response.html || response.rawHtml
-              : null;
+          
+          // Format content based on requested formats
+          const contentParts = [];
+          
+          if (options.formats?.includes('markdown') && response.markdown) {
+            contentParts.push(response.markdown);
+          }
+          if (options.formats?.includes('html') && response.html) {
+            contentParts.push(response.html); 
+          }
+          if (options.formats?.includes('rawHtml') && response.rawHtml) {
+            contentParts.push(response.rawHtml);
+          }
+          if (options.formats?.includes('links') && response.links) {
+            contentParts.push(response.links.join('\n'));
+          }
+          if (options.formats?.includes('screenshot') && response.screenshot) {
+            contentParts.push(response.screenshot);
+          }
+          if (options.formats?.includes('extract') && response.extract) {
+            contentParts.push(JSON.stringify(response.extract, null, 2));
+          }
+
+          // Add warning to response if present
+          if (response.warning) {
+            server.sendLoggingMessage({
+              level: 'warning', 
+              data: response.warning,
+            });
+          }
+
           return {
             content: [
-              { type: 'text', text: content || 'No content available' },
+              { type: 'text', text: contentParts.join('\n\n') || 'No content available' },
             ],
             isError: false,
           };
