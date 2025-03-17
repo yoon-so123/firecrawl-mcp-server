@@ -12,6 +12,7 @@ import FirecrawlApp, {
   type MapParams,
   type CrawlParams,
   type FirecrawlDocument,
+  FirecrawlError,
 } from '@mendable/firecrawl-js';
 import PQueue from 'p-queue';
 
@@ -548,10 +549,75 @@ const DEEP_RESEARCH_TOOL: Tool = {
   },
 };
 
+const GENERATE_LLMSTXT_TOOL: Tool = {
+  name: 'firecrawl_generate_llmstxt',
+  description: 'Generate standardized LLMs.txt file for a given URL, which provides context about how LLMs should interact with the website.',
+  inputSchema: {
+    type: 'object',
+    properties: {
+      url: {
+        type: 'string',
+        description: 'The URL to generate LLMs.txt from',
+      },
+      maxUrls: {
+        type: 'number',
+        description: 'Maximum number of URLs to process (1-100, default: 10)',
+      },
+      showFullText: {
+        type: 'boolean',
+        description: 'Whether to show the full LLMs-full.txt in the response',
+      },
+    },
+    required: ['url'],
+  },
+};
+
 // Type definitions
 interface BatchScrapeOptions {
   urls: string[];
   options?: Omit<ScrapeParams, 'url'>;
+}
+
+/**
+ * Parameters for LLMs.txt generation operations.
+ */
+interface GenerateLLMsTextParams {
+  /**
+   * Maximum number of URLs to process (1-100)
+   * @default 10
+   */
+  maxUrls?: number;
+  /**
+   * Whether to show the full LLMs-full.txt in the response
+   * @default false
+   */
+  showFullText?: boolean;
+  /**
+   * Experimental flag for streaming
+   */
+  __experimental_stream?: boolean;
+}
+
+/**
+ * Response interface for LLMs.txt generation operations.
+ */
+interface GenerateLLMsTextResponse {
+  success: boolean;
+  id: string;
+}
+
+/**
+ * Status response interface for LLMs.txt generation operations.
+ */
+interface GenerateLLMsTextStatusResponse {
+  success: boolean;
+  data: {
+    llmstxt: string;
+    llmsfulltxt?: string;
+  };
+  status: "processing" | "completed" | "failed";
+  error?: string;
+  expiresAt: string;
 }
 
 interface StatusCheckOptions {
@@ -670,6 +736,15 @@ function isExtractOptions(args: unknown): args is ExtractArgs {
   return (
     Array.isArray(urls) &&
     urls.every((url): url is string => typeof url === 'string')
+  );
+}
+
+function isGenerateLLMsTextOptions(args: unknown): args is { url: string } & Partial<GenerateLLMsTextParams> {
+  return (
+    typeof args === 'object' &&
+    args !== null &&
+    'url' in args &&
+    typeof (args as { url: unknown }).url === 'string'
   );
 }
 
@@ -870,6 +945,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     SEARCH_TOOL,
     EXTRACT_TOOL,
     DEEP_RESEARCH_TOOL,
+    GENERATE_LLMSTXT_TOOL,
   ],
 }));
 
@@ -1336,6 +1412,61 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
         }
       }
 
+      case 'firecrawl_generate_llmstxt': {
+        if (!isGenerateLLMsTextOptions(args)) {
+          throw new Error('Invalid arguments for firecrawl_generate_llmstxt');
+        }
+
+        try {
+          const { url, ...params } = args;
+          const generateStartTime = Date.now();
+
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `Starting LLMs.txt generation for URL: ${url}`,
+          });
+
+          // Start the generation process
+          const response = await withRetry(
+            async () => client.generateLLMsText(url, params),
+            'LLMs.txt generation'
+          );
+
+          if (!response.success) {
+            throw new Error(response.error || 'LLMs.txt generation failed');
+          }
+
+          // Log performance metrics
+          server.sendLoggingMessage({
+            level: 'info',
+            data: `LLMs.txt generation completed in ${Date.now() - generateStartTime}ms`,
+          });
+
+          // Format the response
+          let resultText = '';
+          
+          if ('data' in response) {
+            resultText = `LLMs.txt content:\n\n${response.data.llmstxt}`;
+            
+            if (args.showFullText && response.data.llmsfulltxt) {
+              resultText += `\n\nLLMs-full.txt content:\n\n${response.data.llmsfulltxt}`;
+            }
+          }
+
+          return {
+            content: [{ type: 'text', text: resultText }],
+            isError: false,
+          };
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          return {
+            content: [{ type: 'text', text: errorMessage }],
+            isError: true,
+          };
+        }
+      }
+
       default:
         return {
           content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -1388,6 +1519,11 @@ ${doc.metadata?.title ? `Title: ${doc.metadata.title}` : ''}`;
     .join('\n\n');
 }
 
+// Add type guard for credit usage
+function hasCredits(response: any): response is { creditsUsed: number } {
+  return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
+}
+
 // Server startup
 async function runServer() {
   try {
@@ -1414,12 +1550,7 @@ async function runServer() {
   }
 }
 
-runServer().catch((error) => {
+runServer().catch((error: any) => {
   console.error('Fatal error running server:', error);
   process.exit(1);
 });
-
-// Add type guard for credit usage
-function hasCredits(response: any): response is { creditsUsed: number } {
-  return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
-}
