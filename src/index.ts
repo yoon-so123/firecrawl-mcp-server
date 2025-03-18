@@ -12,7 +12,6 @@ import FirecrawlApp, {
   type MapParams,
   type CrawlParams,
   type FirecrawlDocument,
-  FirecrawlError,
 } from '@mendable/firecrawl-js';
 import PQueue from 'p-queue';
 
@@ -524,7 +523,8 @@ const EXTRACT_TOOL: Tool = {
 
 const DEEP_RESEARCH_TOOL: Tool = {
   name: 'firecrawl_deep_research',
-  description: 'Conduct deep research on a query using web crawling, search, and AI analysis.',
+  description:
+    'Conduct deep research on a query using web crawling, search, and AI analysis.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -543,7 +543,7 @@ const DEEP_RESEARCH_TOOL: Tool = {
       maxUrls: {
         type: 'number',
         description: 'Maximum number of URLs to analyze (1-1000)',
-      }
+      },
     },
     required: ['query'],
   },
@@ -551,7 +551,8 @@ const DEEP_RESEARCH_TOOL: Tool = {
 
 const GENERATE_LLMSTXT_TOOL: Tool = {
   name: 'firecrawl_generate_llmstxt',
-  description: 'Generate standardized LLMs.txt file for a given URL, which provides context about how LLMs should interact with the website.',
+  description:
+    'Generate standardized LLMs.txt file for a given URL, which provides context about how LLMs should interact with the website.',
   inputSchema: {
     type: 'object',
     properties: {
@@ -615,7 +616,7 @@ interface GenerateLLMsTextStatusResponse {
     llmstxt: string;
     llmsfulltxt?: string;
   };
-  status: "processing" | "completed" | "failed";
+  status: 'processing' | 'completed' | 'failed';
   error?: string;
   expiresAt: string;
 }
@@ -739,7 +740,9 @@ function isExtractOptions(args: unknown): args is ExtractArgs {
   );
 }
 
-function isGenerateLLMsTextOptions(args: unknown): args is { url: string } & Partial<GenerateLLMsTextParams> {
+function isGenerateLLMsTextOptions(
+  args: unknown
+): args is { url: string } & Partial<GenerateLLMsTextParams> {
   return (
     typeof args === 'object' &&
     args !== null &&
@@ -812,6 +815,31 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+let isStdioTransport = false;
+
+function safeLog(
+  level:
+    | 'error'
+    | 'debug'
+    | 'info'
+    | 'notice'
+    | 'warning'
+    | 'critical'
+    | 'alert'
+    | 'emergency',
+  data: any
+): void {
+  if (isStdioTransport) {
+    // For stdio transport, log to stderr to avoid protocol interference
+    console.error(
+      `[${level}] ${typeof data === 'object' ? JSON.stringify(data) : data}`
+    );
+  } else {
+    // For other transport types, use the normal logging mechanism
+    server.sendLoggingMessage({ level, data });
+  }
+}
+
 // Add retry logic with exponential backoff
 async function withRetry<T>(
   operation: () => Promise<T>,
@@ -832,10 +860,10 @@ async function withRetry<T>(
         CONFIG.retry.maxDelay
       );
 
-      server.sendLoggingMessage({
-        level: 'warning',
-        data: `Rate limit hit for ${context}. Attempt ${attempt}/${CONFIG.retry.maxAttempts}. Retrying in ${delayMs}ms`,
-      });
+      safeLog(
+        'warning',
+        `Rate limit hit for ${context}. Attempt ${attempt}/${CONFIG.retry.maxAttempts}. Retrying in ${delayMs}ms`
+      );
 
       await delay(delayMs);
       return withRetry(operation, context, attempt + 1);
@@ -850,22 +878,16 @@ async function updateCreditUsage(creditsUsed: number): Promise<void> {
   creditUsage.total += creditsUsed;
 
   // Log credit usage
-  server.sendLoggingMessage({
-    level: 'info',
-    data: `Credit usage: ${creditUsage.total} credits used total`,
-  });
+  safeLog('info', `Credit usage: ${creditUsage.total} credits used total`);
 
   // Check thresholds
   if (creditUsage.total >= CONFIG.credit.criticalThreshold) {
-    server.sendLoggingMessage({
-      level: 'error',
-      data: `CRITICAL: Credit usage has reached ${creditUsage.total}`,
-    });
+    safeLog('error', `CRITICAL: Credit usage has reached ${creditUsage.total}`);
   } else if (creditUsage.total >= CONFIG.credit.warningThreshold) {
-    server.sendLoggingMessage({
-      level: 'warning',
-      data: `WARNING: Credit usage has reached ${creditUsage.total}`,
-    });
+    safeLog(
+      'warning',
+      `WARNING: Credit usage has reached ${creditUsage.total}`
+    );
   }
 }
 
@@ -917,19 +939,16 @@ async function processBatchOperation(
 
     // Log final credit usage for the batch
     if (!FIRECRAWL_API_URL) {
-      server.sendLoggingMessage({
-        level: 'info',
-        data: `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`,
-      });
+      safeLog(
+        'info',
+        `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`
+      );
     }
   } catch (error) {
     operation.status = 'failed';
     operation.error = error instanceof Error ? error.message : String(error);
 
-    server.sendLoggingMessage({
-      level: 'error',
-      data: `Batch ${operation.id} failed: ${operation.error}`,
-    });
+    safeLog('error', `Batch ${operation.id} failed: ${operation.error}`);
   }
 }
 
@@ -955,10 +974,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
 
     // Log incoming request with timestamp
-    server.sendLoggingMessage({
-      level: 'info',
-      data: `[${new Date().toISOString()}] Received request for tool: ${name}`,
-    });
+    safeLog(
+      'info',
+      `[${new Date().toISOString()}] Received request for tool: ${name}`
+    );
 
     if (!args) {
       throw new Error('No arguments provided');
@@ -972,34 +991,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { url, ...options } = args;
         try {
           const scrapeStartTime = Date.now();
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Starting scrape for URL: ${url} with options: ${JSON.stringify(
-              options
-            )}`,
-          });
+          safeLog(
+            'info',
+            `Starting scrape for URL: ${url} with options: ${JSON.stringify(options)}`
+          );
 
           const response = await client.scrapeUrl(url, options);
 
           // Log performance metrics
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Scrape completed in ${Date.now() - scrapeStartTime}ms`,
-          });
+          safeLog(
+            'info',
+            `Scrape completed in ${Date.now() - scrapeStartTime}ms`
+          );
 
           if ('success' in response && !response.success) {
             throw new Error(response.error || 'Scraping failed');
           }
 
-          
           // Format content based on requested formats
           const contentParts = [];
-          
+
           if (options.formats?.includes('markdown') && response.markdown) {
             contentParts.push(response.markdown);
           }
           if (options.formats?.includes('html') && response.html) {
-            contentParts.push(response.html); 
+            contentParts.push(response.html);
           }
           if (options.formats?.includes('rawHtml') && response.rawHtml) {
             contentParts.push(response.rawHtml);
@@ -1016,15 +1032,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
           // Add warning to response if present
           if (response.warning) {
-            server.sendLoggingMessage({
-              level: 'warning', 
-              data: response.warning,
-            });
+            safeLog('warning', response.warning);
           }
 
           return {
             content: [
-              { type: 'text', text: contentParts.join('\n\n') || 'No content available' },
+              {
+                type: 'text',
+                text: contentParts.join('\n\n') || 'No content available',
+              },
             ],
             isError: false,
           };
@@ -1079,10 +1095,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           // Queue the operation
           batchQueue.add(() => processBatchOperation(operation));
 
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Queued batch operation ${operationId} with ${args.urls.length} URLs`,
-          });
+          safeLog(
+            'info',
+            `Queued batch operation ${operationId} with ${args.urls.length} URLs`
+          );
 
           return {
             content: [
@@ -1107,9 +1123,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'firecrawl_check_batch_status': {
         if (!isStatusCheckOptions(args)) {
-          throw new Error(
-            'Invalid arguments for firecrawl_check_batch_status'
-          );
+          throw new Error('Invalid arguments for firecrawl_check_batch_status');
         }
 
         const operation = batchOperations.get(args.id);
@@ -1174,9 +1188,7 @@ ${
 
       case 'firecrawl_check_crawl_status': {
         if (!isStatusCheckOptions(args)) {
-          throw new Error(
-            'Invalid arguments for firecrawl_check_crawl_status'
-          );
+          throw new Error('Invalid arguments for firecrawl_check_crawl_status');
         }
         const response = await client.checkCrawlStatus(args.id);
         if (!response.success) {
@@ -1252,17 +1264,14 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
         try {
           const extractStartTime = Date.now();
 
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Starting extraction for URLs: ${args.urls.join(', ')}`,
-          });
+          safeLog(
+            'info',
+            `Starting extraction for URLs: ${args.urls.join(', ')}`
+          );
 
           // Log if using self-hosted instance
           if (FIRECRAWL_API_URL) {
-            server.sendLoggingMessage({
-              level: 'info',
-              data: 'Using self-hosted instance for extraction',
-            });
+            safeLog('info', 'Using self-hosted instance for extraction');
           }
 
           const extractResponse = await withRetry(
@@ -1292,10 +1301,10 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           // Log performance metrics
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Extraction completed in ${Date.now() - extractStartTime}ms`,
-          });
+          safeLog(
+            'info',
+            `Extraction completed in ${Date.now() - extractStartTime}ms`
+          );
 
           // Add warning to response if present
           const result = {
@@ -1309,10 +1318,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           };
 
           if (response.warning) {
-            server.sendLoggingMessage({
-              level: 'warning',
-              data: response.warning,
-            });
+            safeLog('warning', response.warning);
           }
 
           return result;
@@ -1325,10 +1331,10 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             FIRECRAWL_API_URL &&
             errorMessage.toLowerCase().includes('not supported')
           ) {
-            server.sendLoggingMessage({
-              level: 'error',
-              data: 'Extraction is not supported by this self-hosted instance',
-            });
+            safeLog(
+              'error',
+              'Extraction is not supported by this self-hosted instance'
+            );
             return {
               content: [
                 {
@@ -1354,10 +1360,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
 
         try {
           const researchStartTime = Date.now();
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Starting deep research for query: ${args.query}`,
-          });
+          safeLog('info', `Starting deep research for query: ${args.query}`);
 
           const response = await client.deepResearch(
             args.query as string,
@@ -1368,25 +1371,25 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             },
             // Activity callback
             (activity) => {
-              server.sendLoggingMessage({
-                level: 'info',
-                data: `Research activity: ${activity.message} (Depth: ${activity.depth})`,
-              });
+              safeLog(
+                'info',
+                `Research activity: ${activity.message} (Depth: ${activity.depth})`
+              );
             },
             // Source callback
             (source) => {
-              server.sendLoggingMessage({
-                level: 'info',
-                data: `Research source found: ${source.url}${source.title ? ` - ${source.title}` : ''}`,
-              });
+              safeLog(
+                'info',
+                `Research source found: ${source.url}${source.title ? ` - ${source.title}` : ''}`
+              );
             }
           );
 
           // Log performance metrics
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Deep research completed in ${Date.now() - researchStartTime}ms`,
-          });
+          safeLog(
+            'info',
+            `Deep research completed in ${Date.now() - researchStartTime}ms`
+          );
 
           if (!response.success) {
             throw new Error(response.error || 'Deep research failed');
@@ -1404,7 +1407,8 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             isError: false,
           };
         } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
           return {
             content: [{ type: 'text', text: errorMessage }],
             isError: true,
@@ -1421,10 +1425,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           const { url, ...params } = args;
           const generateStartTime = Date.now();
 
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `Starting LLMs.txt generation for URL: ${url}`,
-          });
+          safeLog('info', `Starting LLMs.txt generation for URL: ${url}`);
 
           // Start the generation process
           const response = await withRetry(
@@ -1437,17 +1438,17 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           // Log performance metrics
-          server.sendLoggingMessage({
-            level: 'info',
-            data: `LLMs.txt generation completed in ${Date.now() - generateStartTime}ms`,
-          });
+          safeLog(
+            'info',
+            `LLMs.txt generation completed in ${Date.now() - generateStartTime}ms`
+          );
 
           // Format the response
           let resultText = '';
-          
+
           if ('data' in response) {
             resultText = `LLMs.txt content:\n\n${response.data.llmstxt}`;
-            
+
             if (args.showFullText && response.data.llmsfulltxt) {
               resultText += `\n\nLLMs-full.txt content:\n\n${response.data.llmsfulltxt}`;
             }
@@ -1475,17 +1476,14 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
     }
   } catch (error) {
     // Log detailed error information
-    server.sendLoggingMessage({
-      level: 'error',
-      data: {
-        message: `Request failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        tool: request.params.name,
-        arguments: request.params.arguments,
-        timestamp: new Date().toISOString(),
-        duration: Date.now() - startTime,
-      },
+    safeLog('error', {
+      message: `Request failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+      tool: request.params.name,
+      arguments: request.params.arguments,
+      timestamp: new Date().toISOString(),
+      duration: Date.now() - startTime,
     });
     return {
       content: [
@@ -1500,10 +1498,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
     };
   } finally {
     // Log request completion with performance metrics
-    server.sendLoggingMessage({
-      level: 'info',
-      data: `Request completed in ${Date.now() - startTime}ms`,
-    });
+    safeLog('info', `Request completed in ${Date.now() - startTime}ms`);
   }
 });
 
@@ -1530,18 +1525,23 @@ async function runServer() {
     console.error('Initializing FireCrawl MCP Server...');
 
     const transport = new StdioServerTransport();
+
+    // Detect if we're using stdio transport
+    isStdioTransport = transport instanceof StdioServerTransport;
+    if (isStdioTransport) {
+      console.error(
+        'Running in stdio mode, logging will be directed to stderr'
+      );
+    }
+
     await server.connect(transport);
 
     // Now that we're connected, we can send logging messages
-    server.sendLoggingMessage({
-      level: 'info',
-      data: 'FireCrawl MCP Server initialized successfully',
-    });
-
-    server.sendLoggingMessage({
-      level: 'info',
-      data: `Configuration: API URL: ${FIRECRAWL_API_URL || 'default'}`,
-    });
+    safeLog('info', 'FireCrawl MCP Server initialized successfully');
+    safeLog(
+      'info',
+      `Configuration: API URL: ${FIRECRAWL_API_URL || 'default'}`
+    );
 
     console.error('FireCrawl MCP Server running on stdio');
   } catch (error) {
