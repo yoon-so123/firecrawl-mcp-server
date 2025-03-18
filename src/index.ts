@@ -602,24 +602,24 @@ interface GenerateLLMsTextParams {
 /**
  * Response interface for LLMs.txt generation operations.
  */
-interface GenerateLLMsTextResponse {
-  success: boolean;
-  id: string;
-}
+// interface GenerateLLMsTextResponse {
+//   success: boolean;
+//   id: string;
+// }
 
 /**
  * Status response interface for LLMs.txt generation operations.
  */
-interface GenerateLLMsTextStatusResponse {
-  success: boolean;
-  data: {
-    llmstxt: string;
-    llmsfulltxt?: string;
-  };
-  status: 'processing' | 'completed' | 'failed';
-  error?: string;
-  expiresAt: string;
-}
+// interface GenerateLLMsTextStatusResponse {
+//   success: boolean;
+//   data: {
+//     llmstxt: string;
+//     llmsfulltxt?: string;
+//   };
+//   status: 'processing' | 'completed' | 'failed';
+//   error?: string;
+//   expiresAt: string;
+// }
 
 interface StatusCheckOptions {
   id: string;
