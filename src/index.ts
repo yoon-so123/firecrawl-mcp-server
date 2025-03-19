@@ -1030,6 +1030,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             contentParts.push(JSON.stringify(response.extract, null, 2));
           }
 
+          // If options.formats is empty, default to markdown
+          if (!options.formats || options.formats.length === 0) {
+            options.formats = ['markdown'];
+          }
+
           // Add warning to response if present
           if (response.warning) {
             safeLog('warning', response.warning);
