@@ -1039,7 +1039,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: 'text',
-                text: contentParts.join('\n\n') || 'No content available',
+                text: trimResponseText(
+                  contentParts.join('\n\n') || 'No content available'
+                ),
               },
             ],
             isError: false,
@@ -1048,7 +1050,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1067,7 +1069,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('No links received from FireCrawl API');
         }
         return {
-          content: [{ type: 'text', text: response.links.join('\n') }],
+          content: [
+            { type: 'text', text: trimResponseText(response.links.join('\n')) },
+          ],
           isError: false,
         };
       }
@@ -1104,7 +1108,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: 'text',
-                text: `Batch operation queued with ID: ${operationId}. Use firecrawl_check_batch_status to check progress.`,
+                text: trimResponseText(
+                  `Batch operation queued with ID: ${operationId}. Use firecrawl_check_batch_status to check progress.`
+                ),
               },
             ],
             isError: false,
@@ -1115,7 +1121,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               ? error.message
               : `Batch operation failed: ${JSON.stringify(error)}`;
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1132,7 +1138,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             content: [
               {
                 type: 'text',
-                text: `No batch operation found with ID: ${args.id}`,
+                text: trimResponseText(
+                  `No batch operation found with ID: ${args.id}`
+                ),
               },
             ],
             isError: true,
@@ -1150,7 +1158,7 @@ ${
 }`;
 
         return {
-          content: [{ type: 'text', text: status }],
+          content: [{ type: 'text', text: trimResponseText(status) }],
           isError: false,
         };
       }
@@ -1179,7 +1187,9 @@ ${
           content: [
             {
               type: 'text',
-              text: `Started crawl for ${url} with job ID: ${response.id}`,
+              text: trimResponseText(
+                `Started crawl for ${url} with job ID: ${response.id}`
+              ),
             },
           ],
           isError: false,
@@ -1203,7 +1213,7 @@ ${
   response.data.length > 0 ? '\nResults:\n' + formatResults(response.data) : ''
 }`;
         return {
-          content: [{ type: 'text', text: status }],
+          content: [{ type: 'text', text: trimResponseText(status) }],
           isError: false,
         };
       }
@@ -1241,7 +1251,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             .join('\n\n');
 
           return {
-            content: [{ type: 'text', text: results }],
+            content: [{ type: 'text', text: trimResponseText(results) }],
             isError: false,
           };
         } catch (error) {
@@ -1250,7 +1260,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
               ? error.message
               : `Search failed: ${JSON.stringify(error)}`;
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1311,7 +1321,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
             content: [
               {
                 type: 'text',
-                text: JSON.stringify(response.data, null, 2),
+                text: trimResponseText(JSON.stringify(response.data, null, 2)),
               },
             ],
             isError: false,
@@ -1339,7 +1349,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
               content: [
                 {
                   type: 'text',
-                  text: 'Extraction is not supported by this self-hosted instance. Please ensure LLM support is configured.',
+                  text: trimResponseText(
+                    'Extraction is not supported by this self-hosted instance. Please ensure LLM support is configured.'
+                  ),
                 },
               ],
               isError: true,
@@ -1347,7 +1359,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1403,14 +1415,19 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           };
 
           return {
-            content: [{ type: 'text', text: formattedResponse.finalAnalysis }],
+            content: [
+              {
+                type: 'text',
+                text: trimResponseText(formattedResponse.finalAnalysis),
+              },
+            ],
             isError: false,
           };
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1455,14 +1472,14 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           return {
-            content: [{ type: 'text', text: resultText }],
+            content: [{ type: 'text', text: trimResponseText(resultText) }],
             isError: false,
           };
         } catch (error) {
           const errorMessage =
             error instanceof Error ? error.message : String(error);
           return {
-            content: [{ type: 'text', text: errorMessage }],
+            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
             isError: true,
           };
         }
@@ -1470,7 +1487,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
 
       default:
         return {
-          content: [{ type: 'text', text: `Unknown tool: ${name}` }],
+          content: [
+            { type: 'text', text: trimResponseText(`Unknown tool: ${name}`) },
+          ],
           isError: true,
         };
     }
@@ -1489,9 +1508,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
       content: [
         {
           type: 'text',
-          text: `Error: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
+          text: trimResponseText(
+            `Error: ${error instanceof Error ? error.message : String(error)}`
+          ),
         },
       ],
       isError: true,
@@ -1517,6 +1536,12 @@ ${doc.metadata?.title ? `Title: ${doc.metadata.title}` : ''}`;
 // Add type guard for credit usage
 function hasCredits(response: any): response is { creditsUsed: number } {
   return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
+}
+
+// Utility function to trim trailing whitespace from text responses
+// This prevents Claude API errors with "final assistant content cannot end with trailing whitespace"
+function trimResponseText(text: string): string {
+  return text.trim();
 }
 
 // Server startup
