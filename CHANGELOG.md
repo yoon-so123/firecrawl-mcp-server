@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.1] - 2025-03-18
+
+### Fixed
+
+- Critical bugfix for stdio transport hanging issues with Python clients
+- Implemented transport-aware logging that directs logs to stderr when using stdio transport
+- Resolves issue #22 where Python clients would hang during initialization or tool execution
+- Improves compatibility with non-JavaScript MCP clients
+
 ## [1.2.4] - 2024-02-05
 
 ### Added
