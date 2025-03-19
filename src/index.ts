@@ -755,7 +755,7 @@ function isGenerateLLMsTextOptions(
 const server = new Server(
   {
     name: 'firecrawl-mcp',
-    version: '1.5.2',
+    version: '1.7.0',
   },
   {
     capabilities: {
