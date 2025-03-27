@@ -422,7 +422,7 @@ Arguments:
 - showFullText (boolean, optional): Whether to include llms-full.txt contents in the response.
 
 Returns:
-- Generated llms.txt file contents and optionally the llms-full.txt.
+- Generated llms.txt file contents and optionally the llms-full.txt (data.llmstxt and/or data.llmsfulltxt)
 
 
 
