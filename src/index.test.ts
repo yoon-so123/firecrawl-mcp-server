@@ -79,7 +79,7 @@ interface MockFirecrawlClient {
   mapUrl(url: string, options?: any): Promise<{ links: string[] }>;
 }
 
-describe('FireCrawl Tool Tests', () => {
+describe('Firecrawl Tool Tests', () => {
   let mockClient: MockProxy<MockFirecrawlClient>;
   let requestHandler: (request: RequestParams) => Promise<any>;
 

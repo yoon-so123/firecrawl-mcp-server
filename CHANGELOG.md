@@ -39,7 +39,7 @@
 
 ### Changed
 
-- Removed redundant batch configuration to rely on FireCrawl library's built-in functionality
+- Removed redundant batch configuration to rely on Firecrawl library's built-in functionality
 - Simplified batch processing logic by leveraging library's native implementation
 - Optimized parallel processing and rate limiting handling
 - Reduced code complexity and potential configuration conflicts
@@ -74,7 +74,7 @@
 - Enhanced content validation with configurable criteria
 - Added comprehensive logging system for operations and errors
 - New search tool (`firecrawl_search`) for web search with content extraction
-- Support for self-hosted FireCrawl instances via optional API URL configuration
+- Support for self-hosted Firecrawl instances via optional API URL configuration
   - New `FIRECRAWL_API_URL` environment variable
   - Automatic fallback to cloud API
   - Improved error messages for self-hosted instances

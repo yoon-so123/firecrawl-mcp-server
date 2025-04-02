@@ -47,6 +47,7 @@ const SCRAPE_TOOL: Tool = {
             'extract',
           ],
         },
+        default: ['markdown'],
         description: "Content formats to extract (default: ['markdown'])",
       },
       onlyMainContent: {
@@ -640,6 +641,9 @@ interface SearchOptions {
     formats?: string[];
     onlyMainContent?: boolean;
     waitFor?: number;
+    includeTags?: string[];
+    excludeTags?: string[];
+    timeout?: number;
   };
 }
 
@@ -777,7 +781,7 @@ if (!FIRECRAWL_API_URL && !FIRECRAWL_API_KEY) {
   process.exit(1);
 }
 
-// Initialize FireCrawl client with optional API URL
+// Initialize Firecrawl client with optional API URL
 const client = new FirecrawlApp({
   apiKey: FIRECRAWL_API_KEY || '',
   ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
@@ -996,8 +1000,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             `Starting scrape for URL: ${url} with options: ${JSON.stringify(options)}`
           );
 
-          //@ts-ignore
-          const response = await client.scrapeUrl(url, { ...options, origin: 'mcp-server' });
+          const response = await client.scrapeUrl(url, {
+            ...options,
+            // @ts-expect-error Extended API options including origin
+            origin: 'mcp-server',
+          });
 
           // Log performance metrics
           safeLog(
@@ -1067,13 +1074,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('Invalid arguments for firecrawl_map');
         }
         const { url, ...options } = args;
-        //@ts-ignore
-        const response = await client.mapUrl(url, { ...options, origin: 'mcp-server' });
+        const response = await client.mapUrl(url, {
+          ...options,
+          // @ts-expect-error Extended API options including origin
+          origin: 'mcp-server',
+        });
         if ('error' in response) {
           throw new Error(response.error);
         }
         if (!response.links) {
-          throw new Error('No links received from FireCrawl API');
+          throw new Error('No links received from Firecrawl API');
         }
         return {
           content: [
@@ -1176,8 +1186,9 @@ ${
         }
         const { url, ...options } = args;
         const response = await withRetry(
-          //@ts-ignore
-          async () => client.asyncCrawlUrl(url, { ...options, origin: 'mcp-server' }),
+          async () =>
+            // @ts-expect-error Extended API options including origin
+            client.asyncCrawlUrl(url, { ...options, origin: 'mcp-server' }),
           'crawl operation'
         );
 
@@ -1231,7 +1242,8 @@ ${
         }
         try {
           const response = await withRetry(
-            async () => client.search(args.query, { ...args, origin: 'mcp-server' }),
+            async () =>
+              client.search(args.query, { ...args, origin: 'mcp-server' }),
             'search operation'
           );
 
@@ -1387,7 +1399,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
               maxDepth: args.maxDepth as number,
               timeLimit: args.timeLimit as number,
               maxUrls: args.maxUrls as number,
-              //@ts-ignore
+              // @ts-expect-error Extended API options including origin
               origin: 'mcp-server',
             },
             // Activity callback
@@ -1455,8 +1467,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
 
           // Start the generation process
           const response = await withRetry(
-            //@ts-ignore
-            async () => client.generateLLMsText(url, { ...params, origin: 'mcp-server' }),
+            async () =>
+              // @ts-expect-error Extended API options including origin
+              client.generateLLMsText(url, { ...params, origin: 'mcp-server' }),
             'LLMs.txt generation'
           );
 
@@ -1557,7 +1570,7 @@ function trimResponseText(text: string): string {
 // Server startup
 async function runServer() {
   try {
-    console.error('Initializing FireCrawl MCP Server...');
+    console.error('Initializing Firecrawl MCP Server...');
 
     const transport = new StdioServerTransport();
 
@@ -1572,13 +1585,13 @@ async function runServer() {
     await server.connect(transport);
 
     // Now that we're connected, we can send logging messages
-    safeLog('info', 'FireCrawl MCP Server initialized successfully');
+    safeLog('info', 'Firecrawl MCP Server initialized successfully');
     safeLog(
       'info',
       `Configuration: API URL: ${FIRECRAWL_API_URL || 'default'}`
     );
 
-    console.error('FireCrawl MCP Server running on stdio');
+    console.error('Firecrawl MCP Server running on stdio');
   } catch (error) {
     console.error('Fatal error running server:', error);
     process.exit(1);
