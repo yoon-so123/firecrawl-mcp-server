@@ -29,11 +29,11 @@ COPY --from=builder /app/package.json /app/package.json
 COPY --from=builder /app/package-lock.json /app/package-lock.json
 
 # Install only production dependencies
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Set environment variables for API key and custom API URL if needed
 ENV FIRECRAWL_API_KEY=your-api-key
 ENV FIRECRAWL_API_URL=https://firecrawl.your-domain.com
 
 # Specify the command to run the application
-ENTRYPOINT ["node", "dist/src/index.js"]
+ENTRYPOINT ["node", "dist/index.js"]
