@@ -2,7 +2,9 @@
 
 A Model Context Protocol (MCP) server implementation that integrates with [Firecrawl](https://github.com/mendableai/firecrawl) for web scraping capabilities.
 
-Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
+> Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
+>
+> You can also play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server). Thanks to MCP.so for hosting and [@gstarwd](https://github.com/gstarwd) for integrating our server.
 
 ## Features
 
@@ -11,10 +13,10 @@ Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://ca
 - URL discovery and crawling
 - Web search with content extraction
 - Automatic retries with exponential backoff
-- - Efficient batch processing with built-in rate limiting
+  - Efficient batch processing with built-in rate limiting
 - Credit usage monitoring for cloud API
 - Comprehensive logging system
-- Support for cloud and self-hosted FireCrawl instances
+- Support for cloud and self-hosted Firecrawl instances
 - Mobile/Desktop viewport support
 - Smart content filtering with tag inclusion/exclusion
 
@@ -36,22 +38,44 @@ npm install -g firecrawl-mcp
 
 Configuring Cursor 🖥️
 Note: Requires Cursor version 0.45.6+
+For the most up-to-date configuration instructions, please refer to the official Cursor documentation on configuring MCP servers:
+[Cursor MCP Server Configuration Guide](https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers)
 
-To configure FireCrawl MCP in Cursor:
+To configure Firecrawl MCP in Cursor **v0.45.6**
 
 1. Open Cursor Settings
-2. Go to Features > MCP Servers 
+2. Go to Features > MCP Servers
 3. Click "+ Add New MCP Server"
 4. Enter the following:
    - Name: "firecrawl-mcp" (or your preferred name)
    - Type: "command"
    - Command: `env FIRECRAWL_API_KEY=your-api-key npx -y firecrawl-mcp`
 
+To configure Firecrawl MCP in Cursor **v0.48.6**
+
+1. Open Cursor Settings
+2. Go to Features > MCP Servers
+3. Click "+ Add new global MCP server"
+4. Enter the following code:
+   ```json
+   {
+     "mcpServers": {
+       "firecrawl-mcp": {
+         "command": "npx",
+         "args": ["-y", "firecrawl-mcp"],
+         "env": {
+           "FIRECRAWL_API_KEY": "YOUR-API-KEY"
+         }
+       }
+     }
+   }
+   ```
+
 > If you are using Windows and are running into issues, try `cmd /c "set FIRECRAWL_API_KEY=your-api-key && npx -y firecrawl-mcp"`
 
-Replace `your-api-key` with your FireCrawl API key.
+Replace `your-api-key` with your Firecrawl API key. If you don't have one yet, you can create an account and get it from https://www.firecrawl.dev/app/api-keys
 
-After adding, refresh the MCP server list to see the new tools. The Composer Agent will automatically use FireCrawl MCP when appropriate, but you can explicitly request it by describing your web scraping needs. Access the Composer via Command+L (Mac), select "Agent" next to the submit button, and enter your query.
+After adding, refresh the MCP server list to see the new tools. The Composer Agent will automatically use Firecrawl MCP when appropriate, but you can explicitly request it by describing your web scraping needs. Access the Composer via Command+L (Mac), select "Agent" next to the submit button, and enter your query.
 
 ### Running on Windsurf
 
@@ -64,17 +88,16 @@ Add this to your `./codeium/windsurf/model_config.json`:
       "command": "npx",
       "args": ["-y", "firecrawl-mcp"],
       "env": {
-        "FIRECRAWL_API_KEY": "YOUR_API_KEY_HERE"
+        "FIRECRAWL_API_KEY": "YOUR_API_KEY"
       }
     }
   }
 }
 ```
 
-
 ### Installing via Smithery (Legacy)
 
-To install FireCrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
+To install Firecrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
 
 ```bash
 npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
@@ -86,7 +109,7 @@ npx -y @smithery/cli install @mendableai/mcp-server-firecrawl --client claude
 
 #### Required for Cloud API
 
-- `FIRECRAWL_API_KEY`: Your FireCrawl API key
+- `FIRECRAWL_API_KEY`: Your Firecrawl API key
   - Required when using cloud API (default)
   - Optional when using self-hosted instance with `FIRECRAWL_API_URL`
 - `FIRECRAWL_API_URL` (Optional): Custom API endpoint for self-hosted instances
@@ -206,7 +229,7 @@ These configurations control:
 
 ### Rate Limiting and Batch Processing
 
-The server utilizes FireCrawl's built-in rate limiting and batch processing capabilities:
+The server utilizes Firecrawl's built-in rate limiting and batch processing capabilities:
 
 - Automatic rate limit handling with exponential backoff
 - Efficient parallel processing for batch operations
@@ -372,10 +395,10 @@ Example response:
 - `enableWebSearch`: Enable web search for additional context
 - `includeSubdomains`: Include subdomains in extraction
 
-When using a self-hosted instance, the extraction will use your configured LLM. For cloud API, it uses FireCrawl's managed LLM service.
-
+When using a self-hosted instance, the extraction will use your configured LLM. For cloud API, it uses Firecrawl's managed LLM service.
 
 ### 7. Deep Research Tool (firecrawl_deep_research)
+
 Conduct deep web research on a query using intelligent crawling, search, and LLM analysis.
 
 ```json
@@ -391,6 +414,7 @@ Conduct deep web research on a query using intelligent crawling, search, and LLM
 ```
 
 Arguments:
+
 - query (string, required): The research question or topic to explore.
 - maxDepth (number, optional): Maximum recursive depth for crawling/search (default: 3).
 - timeLimit (number, optional): Time limit in seconds for the research session (default: 120).
@@ -402,6 +426,7 @@ Returns:
 - May also include structured activities and sources used in the research process.
 
 ### 8. Generate LLMs.txt Tool (firecrawl_generate_llmstxt)
+
 Generate a standardized llms.txt (and optionally llms-full.txt) file for a given domain. This file defines how large language models should interact with the site.
 
 ```json
@@ -422,10 +447,8 @@ Arguments:
 - showFullText (boolean, optional): Whether to include llms-full.txt contents in the response.
 
 Returns:
+
 - Generated llms.txt file contents and optionally the llms-full.txt (data.llmstxt and/or data.llmsfulltxt)
-
-
-
 
 ## Logging System
 
@@ -440,7 +463,7 @@ The server includes comprehensive logging:
 Example log messages:
 
 ```
-[INFO] FireCrawl MCP Server initialized successfully
+[INFO] Firecrawl MCP Server initialized successfully
 [INFO] Starting scrape for URL: https://example.com
 [INFO] Batch operation queued with ID: batch_1
 [WARNING] Credit usage has reached warning threshold

@@ -10,10 +10,11 @@ startCommand:
     properties:
       fireCrawlApiKey:
         type: string
-        description: Your FireCrawl API key. Required for cloud API usage.
+        description: Your Firecrawl API key. Required for cloud API usage.
       fireCrawlApiUrl:
         type: string
-        description: Custom API endpoint for self-hosted instances. If provided, API key
+        description:
+          Custom API endpoint for self-hosted instances. If provided, API key
           becomes optional.
   commandFunction:
     # A function that produces the CLI command to start the MCP on stdio.
