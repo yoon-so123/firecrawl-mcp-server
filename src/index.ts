@@ -2,6 +2,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   Tool,
   CallToolRequestSchema,
@@ -14,7 +15,7 @@ import FirecrawlApp, {
   type FirecrawlDocument,
 } from '@mendable/firecrawl-js';
 import PQueue from 'p-queue';
-
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -782,10 +783,6 @@ if (!FIRECRAWL_API_URL && !FIRECRAWL_API_KEY) {
 }
 
 // Initialize Firecrawl client with optional API URL
-const client = new FirecrawlApp({
-  apiKey: FIRECRAWL_API_KEY || '',
-  ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
-});
 
 // Configuration for retries and monitoring
 const CONFIG = {
@@ -915,7 +912,8 @@ const batchOperations = new Map<string, QueuedBatchOperation>();
 let operationCounter = 0;
 
 async function processBatchOperation(
-  operation: QueuedBatchOperation
+  operation: QueuedBatchOperation,
+  client: FirecrawlApp
 ): Promise<void> {
   try {
     operation.status = 'processing';
@@ -977,6 +975,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
 
+    let apiKey = process.env.CLOUD_SERVICE
+      ? (request.params._meta?.apiKey as string)
+      : FIRECRAWL_API_KEY;
+    if (process.env.CLOUD_SERVICE && !apiKey) {
+      throw new Error('No API key provided');
+    }
+
+    const client = new FirecrawlApp({
+      apiKey: FIRECRAWL_API_KEY || '',
+      ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
+    });
     // Log incoming request with timestamp
     safeLog(
       'info',
@@ -1114,7 +1123,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           batchOperations.set(operationId, operation);
 
           // Queue the operation
-          batchQueue.add(() => processBatchOperation(operation));
+          batchQueue.add(() => processBatchOperation(operation, client));
 
           safeLog(
             'info',
@@ -1566,9 +1575,10 @@ function hasCredits(response: any): response is { creditsUsed: number } {
 function trimResponseText(text: string): string {
   return text.trim();
 }
+const app = express();
 
 // Server startup
-async function runServer() {
+async function runLocalServer() {
   try {
     console.error('Initializing Firecrawl MCP Server...');
 
@@ -1598,7 +1608,73 @@ async function runServer() {
   }
 }
 
-runServer().catch((error: any) => {
-  console.error('Fatal error running server:', error);
-  process.exit(1);
-});
+async function runCloudServer() {
+  const transports: { [sessionId: string]: SSEServerTransport } = {};
+
+  app.get('/:apiKey/sse', async (req, res) => {
+    const apiKey = req.params.apiKey;
+    const transport = new SSEServerTransport(`/${apiKey}/messages`, res);
+
+    //todo: validate api key, close if invalid
+    const compositeKey = `${apiKey}-${transport.sessionId}`;
+    transports[compositeKey] = transport;
+    res.on('close', () => {
+      delete transports[compositeKey];
+    });
+    await server.connect(transport);
+  });
+
+  // Endpoint for the client to POST messages
+  // Remove express.json() middleware - let the transport handle the body
+  app.post(
+    '/:apiKey/messages',
+    express.json(),
+    async (req: Request, res: Response) => {
+      const apiKey = req.params.apiKey;
+      const body = req.body;
+      let enrichedBody = {
+        ...body,
+      };
+
+      if (enrichedBody && enrichedBody.params && !enrichedBody.params._meta) {
+        enrichedBody.params._meta = { apiKey };
+      } else if (
+        enrichedBody &&
+        enrichedBody.params &&
+        enrichedBody.params._meta
+      ) {
+        enrichedBody.params._meta.apiKey = apiKey;
+      }
+
+      console.log('enrichedBody', enrichedBody);
+
+      const sessionId = req.query.sessionId as string;
+      const compositeKey = `${apiKey}-${sessionId}`;
+      const transport = transports[compositeKey];
+      if (transport) {
+        await transport.handlePostMessage(req, res, enrichedBody);
+      } else {
+        res.status(400).send('No transport found for sessionId');
+      }
+    }
+  );
+
+  const PORT = 3000;
+  app.listen(PORT, () => {
+    console.log(`MCP SSE Server listening on http://localhost:${PORT}`);
+    console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+    console.log(`Message endpoint: http://localhost:${PORT}/messages`);
+  });
+}
+
+if (process.env.CLOUD_SERVICE === 'true') {
+  runCloudServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+} else {
+  runLocalServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+}
