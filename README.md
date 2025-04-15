@@ -4,7 +4,7 @@ A Model Context Protocol (MCP) server implementation that integrates with [Firec
 
 > Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
 >
-> You can also play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server). Thanks to MCP.so for hosting and [@gstarwd](https://github.com/gstarwd) for integrating our server.
+> You can also play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server) or on [Klavis AI](https://www.klavis.ai). Thanks to MCP.so and Klavis AI for hosting and [@gstarwd](https://github.com/gstarwd) and [@xiangkaiz](https://github.com/xiangkaiz) for integrating our server.
 
 ## Features
 
