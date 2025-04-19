@@ -812,7 +812,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     const client = new FirecrawlApp({
-      apiKey: FIRECRAWL_API_KEY || '',
+      apiKey,
       ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
     });
     // Log incoming request with timestamp
