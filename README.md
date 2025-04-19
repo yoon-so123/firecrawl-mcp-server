@@ -95,6 +95,16 @@ Add this to your `./codeium/windsurf/model_config.json`:
 }
 ```
 
+### Running with SSE Local Mode
+
+To run the server using Server-Sent Events (SSE) locally instead of the default stdio transport:
+
+```bash
+env SSE_LOCAL=true FIRECRAWL_API_KEY=fc-YOUR_API_KEY npx -y firecrawl-mcp
+```
+
+Use the url: http://localhost:3000/sse
+
 ### Installing via Smithery (Legacy)
 
 To install Firecrawl for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@mendableai/mcp-server-firecrawl):
