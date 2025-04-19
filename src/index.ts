@@ -1353,6 +1353,10 @@ async function runSSECloudServer() {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
   const app = express();
 
+  app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+  });
+
   app.get('/:apiKey/sse', async (req, res) => {
     const apiKey = req.params.apiKey;
     const transport = new SSEServerTransport(`/${apiKey}/messages`, res);
