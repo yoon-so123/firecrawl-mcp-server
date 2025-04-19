@@ -1297,7 +1297,6 @@ ${doc.metadata?.title ? `Title: ${doc.metadata.title}` : ''}`;
 function trimResponseText(text: string): string {
   return text.trim();
 }
-const app = express();
 
 // Server startup
 async function runLocalServer() {
@@ -1331,6 +1330,8 @@ async function runLocalServer() {
 }
 async function runSSELocalServer() {
   let transport: SSEServerTransport | null = null;
+  const app = express();
+
   app.get('/sse', async (req, res) => {
     transport = new SSEServerTransport(`/messages`, res);
     res.on('close', () => {
@@ -1350,6 +1351,7 @@ async function runSSELocalServer() {
 
 async function runSSECloudServer() {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
+  const app = express();
 
   app.get('/:apiKey/sse', async (req, res) => {
     const apiKey = req.params.apiKey;
