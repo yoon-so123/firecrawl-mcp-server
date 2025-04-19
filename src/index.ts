@@ -804,7 +804,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
 
-    let apiKey = process.env.CLOUD_SERVICE
+    const apiKey = process.env.CLOUD_SERVICE
       ? (request.params._meta?.apiKey as string)
       : FIRECRAWL_API_KEY;
     if (process.env.CLOUD_SERVICE && !apiKey) {
@@ -1374,7 +1374,7 @@ async function runSSECloudServer() {
     async (req: Request, res: Response) => {
       const apiKey = req.params.apiKey;
       const body = req.body;
-      let enrichedBody = {
+      const enrichedBody = {
         ...body,
       };
 
