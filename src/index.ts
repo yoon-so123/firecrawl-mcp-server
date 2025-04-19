@@ -326,72 +326,6 @@ const CRAWL_TOOL: Tool = {
   },
 };
 
-const BATCH_SCRAPE_TOOL: Tool = {
-  name: 'firecrawl_batch_scrape',
-  description:
-    'Scrape multiple URLs in batch mode. Returns a job ID that can be used to check status.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      urls: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'List of URLs to scrape',
-      },
-      options: {
-        type: 'object',
-        properties: {
-          formats: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: [
-                'markdown',
-                'html',
-                'rawHtml',
-                'screenshot',
-                'links',
-                'screenshot@fullPage',
-                'extract',
-              ],
-            },
-          },
-          onlyMainContent: {
-            type: 'boolean',
-          },
-          includeTags: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          excludeTags: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          waitFor: {
-            type: 'number',
-          },
-        },
-      },
-    },
-    required: ['urls'],
-  },
-};
-
-const CHECK_BATCH_STATUS_TOOL: Tool = {
-  name: 'firecrawl_check_batch_status',
-  description: 'Check the status of a batch scraping job.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      id: {
-        type: 'string',
-        description: 'Batch job ID to check',
-      },
-    },
-    required: ['id'],
-  },
-};
-
 const CHECK_CRAWL_STATUS_TOOL: Tool = {
   name: 'firecrawl_check_crawl_status',
   description: 'Check the status of a crawl job.',
@@ -575,12 +509,6 @@ const GENERATE_LLMSTXT_TOOL: Tool = {
   },
 };
 
-// Type definitions
-interface BatchScrapeOptions {
-  urls: string[];
-  options?: Omit<ScrapeParams, 'url'>;
-}
-
 /**
  * Parameters for LLMs.txt generation operations.
  */
@@ -705,16 +633,6 @@ function isCrawlOptions(args: unknown): args is CrawlParams & { url: string } {
     args !== null &&
     'url' in args &&
     typeof (args as { url: unknown }).url === 'string'
-  );
-}
-
-function isBatchScrapeOptions(args: unknown): args is BatchScrapeOptions {
-  return (
-    typeof args === 'object' &&
-    args !== null &&
-    'urls' in args &&
-    Array.isArray((args as { urls: unknown }).urls) &&
-    (args as { urls: unknown[] }).urls.every((url) => typeof url === 'string')
   );
 }
 
@@ -867,28 +785,12 @@ async function withRetry<T>(
   }
 }
 
-// Add before server implementation
-interface QueuedBatchOperation {
-  id: string;
-  urls: string[];
-  options?: any;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  progress: {
-    completed: number;
-    total: number;
-  };
-  result?: any;
-  error?: string;
-}
-
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     SCRAPE_TOOL,
     MAP_TOOL,
     CRAWL_TOOL,
-    BATCH_SCRAPE_TOOL,
-    CHECK_BATCH_STATUS_TOOL,
     CHECK_CRAWL_STATUS_TOOL,
     SEARCH_TOOL,
     EXTRACT_TOOL,
@@ -1025,116 +927,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           content: [
             { type: 'text', text: trimResponseText(response.links.join('\n')) },
           ],
-          isError: false,
-        };
-      }
-
-      case 'firecrawl_batch_scrape': {
-        if (!isBatchScrapeOptions(args)) {
-          throw new Error('Invalid arguments for firecrawl_batch_scrape');
-        }
-
-        try {
-          // const operationId = crypto.randomUUID();
-          // const operation: QueuedBatchOperation = {
-          //   id: operationId,
-          //   urls: args.urls,
-          //   options: args.options,
-          //   status: 'pending',
-          //   progress: {
-          //     completed: 0,
-          //     total: args.urls.length,
-          //   },
-          // };
-
-          try {
-            operation.status = 'processing';
-
-            // Use library's built-in batch processing
-            const response = await withRetry(
-              async () =>
-                client.asyncBatchScrapeUrls(operation.urls, operation.options),
-              `batch ${operation.id} processing`
-            );
-
-            if (!response.success) {
-              throw new Error(response.error || 'Batch operation failed');
-            }
-            console.log(response.id);
-
-            operation.status = 'completed';
-            operation.result = response;
-          } catch (error) {
-            operation.status = 'failed';
-            operation.error =
-              error instanceof Error ? error.message : String(error);
-
-            safeLog(
-              'error',
-              `Batch ${operation.id} failed: ${operation.error}`
-            );
-          }
-
-          safeLog(
-            'info',
-            `Queued batch operation ${operationId} with ${args.urls.length} URLs`
-          );
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: trimResponseText(
-                  `Batch operation queued with ID: ${operationId}. Use firecrawl_check_batch_status to check progress.`
-                ),
-              },
-            ],
-            isError: false,
-          };
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : `Batch operation failed: ${JSON.stringify(error)}`;
-          return {
-            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
-            isError: true,
-          };
-        }
-      }
-
-      case 'firecrawl_check_batch_status': {
-        if (!isStatusCheckOptions(args)) {
-          throw new Error('Invalid arguments for firecrawl_check_batch_status');
-        }
-
-        const operation = batchOperations.get(args.id);
-        if (!operation) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: trimResponseText(
-                  `No batch operation found with ID: ${args.id}`
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const status = `Batch Status:
-Status: ${operation.status}
-Progress: ${operation.progress.completed}/${operation.progress.total}
-${operation.error ? `Error: ${operation.error}` : ''}
-${
-  operation.result
-    ? `Results: ${JSON.stringify(operation.result, null, 2)}`
-    : ''
-}`;
-
-        return {
-          content: [{ type: 'text', text: trimResponseText(status) }],
           isError: false,
         };
       }
