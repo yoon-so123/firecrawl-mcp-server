@@ -775,7 +775,11 @@ const FIRECRAWL_API_URL = process.env.FIRECRAWL_API_URL;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
 // Check if API key is required (only for cloud service)
-if (!FIRECRAWL_API_URL && !FIRECRAWL_API_KEY) {
+if (
+  process.env.CLOUD_SERVICE !== 'true' &&
+  !FIRECRAWL_API_URL &&
+  !FIRECRAWL_API_KEY
+) {
   console.error(
     'Error: FIRECRAWL_API_KEY environment variable is required when using the cloud service'
   );
@@ -1607,8 +1611,26 @@ async function runLocalServer() {
     process.exit(1);
   }
 }
+async function runSSELocalServer() {
+  let transport: SSEServerTransport | null = null;
+  app.get('/sse', async (req, res) => {
+    transport = new SSEServerTransport(`/messages`, res);
+    res.on('close', () => {
+      transport = null;
+    });
+    await server.connect(transport);
+  });
 
-async function runCloudServer() {
+  // Endpoint for the client to POST messages
+  // Remove express.json() middleware - let the transport handle the body
+  app.post('/messages', (req, res) => {
+    if (transport) {
+      transport.handlePostMessage(req, res);
+    }
+  });
+}
+
+async function runSSECloudServer() {
   const transports: { [sessionId: string]: SSEServerTransport } = {};
 
   app.get('/:apiKey/sse', async (req, res) => {
@@ -1668,7 +1690,12 @@ async function runCloudServer() {
 }
 
 if (process.env.CLOUD_SERVICE === 'true') {
-  runCloudServer().catch((error: any) => {
+  runSSECloudServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+} else if (process.env.SSE_LOCAL === 'true') {
+  runSSELocalServer().catch((error: any) => {
     console.error('Fatal error running server:', error);
     process.exit(1);
   });
