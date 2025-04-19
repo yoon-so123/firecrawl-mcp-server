@@ -804,17 +804,6 @@ const CONFIG = {
   },
 };
 
-// Add credit tracking
-interface CreditUsage {
-  total: number;
-  lastCheck: number;
-}
-
-const creditUsage: CreditUsage = {
-  total: 0,
-  lastCheck: Date.now(),
-};
-
 // Add utility function for delay
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -878,24 +867,6 @@ async function withRetry<T>(
   }
 }
 
-// Add credit monitoring
-async function updateCreditUsage(creditsUsed: number): Promise<void> {
-  creditUsage.total += creditsUsed;
-
-  // Log credit usage
-  safeLog('info', `Credit usage: ${creditUsage.total} credits used total`);
-
-  // Check thresholds
-  if (creditUsage.total >= CONFIG.credit.criticalThreshold) {
-    safeLog('error', `CRITICAL: Credit usage has reached ${creditUsage.total}`);
-  } else if (creditUsage.total >= CONFIG.credit.warningThreshold) {
-    safeLog(
-      'warning',
-      `WARNING: Credit usage has reached ${creditUsage.total}`
-    );
-  }
-}
-
 // Add before server implementation
 interface QueuedBatchOperation {
   id: string;
@@ -908,54 +879,6 @@ interface QueuedBatchOperation {
   };
   result?: any;
   error?: string;
-}
-
-// Initialize queue system
-const batchQueue = new PQueue({ concurrency: 1 });
-const batchOperations = new Map<string, QueuedBatchOperation>();
-let operationCounter = 0;
-
-async function processBatchOperation(
-  operation: QueuedBatchOperation,
-  client: FirecrawlApp
-): Promise<void> {
-  try {
-    operation.status = 'processing';
-    let totalCreditsUsed = 0;
-
-    // Use library's built-in batch processing
-    const response = await withRetry(
-      async () =>
-        client.asyncBatchScrapeUrls(operation.urls, operation.options),
-      `batch ${operation.id} processing`
-    );
-
-    if (!response.success) {
-      throw new Error(response.error || 'Batch operation failed');
-    }
-
-    // Track credits if using cloud API
-    if (!FIRECRAWL_API_URL && hasCredits(response)) {
-      totalCreditsUsed += response.creditsUsed;
-      await updateCreditUsage(response.creditsUsed);
-    }
-
-    operation.status = 'completed';
-    operation.result = response;
-
-    // Log final credit usage for the batch
-    if (!FIRECRAWL_API_URL) {
-      safeLog(
-        'info',
-        `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`
-      );
-    }
-  } catch (error) {
-    operation.status = 'failed';
-    operation.error = error instanceof Error ? error.message : String(error);
-
-    safeLog('error', `Batch ${operation.id} failed: ${operation.error}`);
-  }
 }
 
 // Tool handlers
@@ -1112,22 +1035,45 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         }
 
         try {
-          const operationId = `batch_${++operationCounter}`;
-          const operation: QueuedBatchOperation = {
-            id: operationId,
-            urls: args.urls,
-            options: args.options,
-            status: 'pending',
-            progress: {
-              completed: 0,
-              total: args.urls.length,
-            },
-          };
+          // const operationId = crypto.randomUUID();
+          // const operation: QueuedBatchOperation = {
+          //   id: operationId,
+          //   urls: args.urls,
+          //   options: args.options,
+          //   status: 'pending',
+          //   progress: {
+          //     completed: 0,
+          //     total: args.urls.length,
+          //   },
+          // };
 
-          batchOperations.set(operationId, operation);
+          try {
+            operation.status = 'processing';
 
-          // Queue the operation
-          batchQueue.add(() => processBatchOperation(operation, client));
+            // Use library's built-in batch processing
+            const response = await withRetry(
+              async () =>
+                client.asyncBatchScrapeUrls(operation.urls, operation.options),
+              `batch ${operation.id} processing`
+            );
+
+            if (!response.success) {
+              throw new Error(response.error || 'Batch operation failed');
+            }
+            console.log(response.id);
+
+            operation.status = 'completed';
+            operation.result = response;
+          } catch (error) {
+            operation.status = 'failed';
+            operation.error =
+              error instanceof Error ? error.message : String(error);
+
+            safeLog(
+              'error',
+              `Batch ${operation.id} failed: ${operation.error}`
+            );
+          }
 
           safeLog(
             'info',
@@ -1209,11 +1155,6 @@ ${
           throw new Error(response.error);
         }
 
-        // Monitor credits for cloud API
-        if (!FIRECRAWL_API_URL && hasCredits(response)) {
-          await updateCreditUsage(response.creditsUsed);
-        }
-
         return {
           content: [
             {
@@ -1264,11 +1205,6 @@ ${
             throw new Error(
               `Search failed: ${response.error || 'Unknown error'}`
             );
-          }
-
-          // Monitor credits for cloud API
-          if (!FIRECRAWL_API_URL && hasCredits(response)) {
-            await updateCreditUsage(response.creditsUsed);
           }
 
           // Format the results
@@ -1336,11 +1272,6 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           const response = extractResponse as ExtractResponse;
-
-          // Monitor credits for cloud API
-          if (!FIRECRAWL_API_URL && hasCredits(response)) {
-            await updateCreditUsage(response.creditsUsed || 0);
-          }
 
           // Log performance metrics
           safeLog(
@@ -1567,11 +1498,6 @@ Content: ${content.substring(0, 100)}${content.length > 100 ? '...' : ''}
 ${doc.metadata?.title ? `Title: ${doc.metadata.title}` : ''}`;
     })
     .join('\n\n');
-}
-
-// Add type guard for credit usage
-function hasCredits(response: any): response is { creditsUsed: number } {
-  return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
 }
 
 // Utility function to trim trailing whitespace from text responses
