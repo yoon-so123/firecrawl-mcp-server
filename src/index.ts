@@ -14,7 +14,7 @@ import FirecrawlApp, {
   type CrawlParams,
   type FirecrawlDocument,
 } from '@mendable/firecrawl-js';
-import PQueue from 'p-queue';
+
 import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 
