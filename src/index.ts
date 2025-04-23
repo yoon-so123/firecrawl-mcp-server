@@ -1347,6 +1347,18 @@ async function runSSELocalServer() {
       transport.handlePostMessage(req, res);
     }
   });
+
+  const PORT = process.env.PORT || 3000;
+  console.log('Starting server on port', PORT);
+  try {
+    app.listen(PORT, () => {
+      console.log(`MCP SSE Server listening on http://localhost:${PORT}`);
+      console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+      console.log(`Message endpoint: http://localhost:${PORT}/messages`);
+    });
+  } catch (error) {
+    console.error('Error starting server:', error);
+  }
 }
 
 async function runSSECloudServer() {
