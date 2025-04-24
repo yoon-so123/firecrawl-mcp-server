@@ -3,8 +3,7 @@
 A Model Context Protocol (MCP) server implementation that integrates with [Firecrawl](https://github.com/mendableai/firecrawl) for web scraping capabilities.
 
 > Big thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
->
-> You can also play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server) or on [Klavis AI](https://www.klavis.ai/mcp-servers). Thanks to MCP.so and Klavis AI for hosting and [@gstarwd](https://github.com/gstarwd), [@xiangkaiz](https://github.com/xiangkaiz) and [@zihaolin96](https://github.com/zihaolin96) for integrating our server.
+
 
 ## Features
 
@@ -19,6 +18,8 @@ A Model Context Protocol (MCP) server implementation that integrates with [Firec
 - Support for cloud and self-hosted Firecrawl instances
 - Mobile/Desktop viewport support
 - Smart content filtering with tag inclusion/exclusion
+
+> Play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server) or on [Klavis AI](https://www.klavis.ai/mcp-servers).
 
 ## Installation
 
@@ -579,6 +580,12 @@ npm test
 2. Create your feature branch
 3. Run tests: `npm test`
 4. Submit a pull request
+
+### Thanks to contributors
+
+Thanks to [@vrknetha](https://github.com/vrknetha), [@cawstudios](https://caw.tech) for the initial implementation!
+
+Thanks to MCP.so and Klavis AI for hosting and [@gstarwd](https://github.com/gstarwd), [@xiangkaiz](https://github.com/xiangkaiz) and [@zihaolin96](https://github.com/zihaolin96) for integrating our server.
 
 ## License
 
