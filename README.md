@@ -7,18 +7,12 @@ A Model Context Protocol (MCP) server implementation that integrates with [Firec
 
 ## Features
 
-- Scrape, crawl, search, extract, deep research and batch scrape support
-- Web scraping with JS rendering
-- URL discovery and crawling
-- Web search with content extraction
-- Automatic retries with exponential backoff
-  - Efficient batch processing with built-in rate limiting
-- Credit usage monitoring for cloud API
-- Comprehensive logging system
-- Support for cloud and self-hosted Firecrawl instances
-- Mobile/Desktop viewport support
-- Smart content filtering with tag inclusion/exclusion
-- SSE Support
+- Web scraping, crawling, and discovery
+- Search and content extraction
+- Deep research and batch scraping
+- Automatic retries and rate limiting
+- Cloud and self-hosted support
+- SSE support
 
 > Play around with [our MCP Server on MCP.so's playground](https://mcp.so/playground?server=firecrawl-mcp-server) or on [Klavis AI](https://www.klavis.ai/mcp-servers).
 
@@ -43,16 +37,6 @@ Note: Requires Cursor version 0.45.6+
 For the most up-to-date configuration instructions, please refer to the official Cursor documentation on configuring MCP servers:
 [Cursor MCP Server Configuration Guide](https://docs.cursor.com/context/model-context-protocol#configuring-mcp-servers)
 
-To configure Firecrawl MCP in Cursor **v0.45.6**
-
-1. Open Cursor Settings
-2. Go to Features > MCP Servers
-3. Click "+ Add New MCP Server"
-4. Enter the following:
-   - Name: "firecrawl-mcp" (or your preferred name)
-   - Type: "command"
-   - Command: `env FIRECRAWL_API_KEY=your-api-key npx -y firecrawl-mcp`
-
 To configure Firecrawl MCP in Cursor **v0.48.6**
 
 1. Open Cursor Settings
@@ -72,6 +56,18 @@ To configure Firecrawl MCP in Cursor **v0.48.6**
      }
    }
    ```
+   
+To configure Firecrawl MCP in Cursor **v0.45.6**
+
+1. Open Cursor Settings
+2. Go to Features > MCP Servers
+3. Click "+ Add New MCP Server"
+4. Enter the following:
+   - Name: "firecrawl-mcp" (or your preferred name)
+   - Type: "command"
+   - Command: `env FIRECRAWL_API_KEY=your-api-key npx -y firecrawl-mcp`
+
+
 
 > If you are using Windows and are running into issues, try `cmd /c "set FIRECRAWL_API_KEY=your-api-key && npx -y firecrawl-mcp"`
 
