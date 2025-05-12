@@ -2,6 +2,7 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import {
   Tool,
   CallToolRequestSchema,
@@ -13,8 +14,8 @@ import FirecrawlApp, {
   type CrawlParams,
   type FirecrawlDocument,
 } from '@mendable/firecrawl-js';
-import PQueue from 'p-queue';
 
+import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -47,6 +48,7 @@ const SCRAPE_TOOL: Tool = {
             'extract',
           ],
         },
+        default: ['markdown'],
         description: "Content formats to extract (default: ['markdown'])",
       },
       onlyMainContent: {
@@ -324,72 +326,6 @@ const CRAWL_TOOL: Tool = {
   },
 };
 
-const BATCH_SCRAPE_TOOL: Tool = {
-  name: 'firecrawl_batch_scrape',
-  description:
-    'Scrape multiple URLs in batch mode. Returns a job ID that can be used to check status.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      urls: {
-        type: 'array',
-        items: { type: 'string' },
-        description: 'List of URLs to scrape',
-      },
-      options: {
-        type: 'object',
-        properties: {
-          formats: {
-            type: 'array',
-            items: {
-              type: 'string',
-              enum: [
-                'markdown',
-                'html',
-                'rawHtml',
-                'screenshot',
-                'links',
-                'screenshot@fullPage',
-                'extract',
-              ],
-            },
-          },
-          onlyMainContent: {
-            type: 'boolean',
-          },
-          includeTags: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          excludeTags: {
-            type: 'array',
-            items: { type: 'string' },
-          },
-          waitFor: {
-            type: 'number',
-          },
-        },
-      },
-    },
-    required: ['urls'],
-  },
-};
-
-const CHECK_BATCH_STATUS_TOOL: Tool = {
-  name: 'firecrawl_check_batch_status',
-  description: 'Check the status of a batch scraping job.',
-  inputSchema: {
-    type: 'object',
-    properties: {
-      id: {
-        type: 'string',
-        description: 'Batch job ID to check',
-      },
-    },
-    required: ['id'],
-  },
-};
-
 const CHECK_CRAWL_STATUS_TOOL: Tool = {
   name: 'firecrawl_check_crawl_status',
   description: 'Check the status of a crawl job.',
@@ -573,12 +509,6 @@ const GENERATE_LLMSTXT_TOOL: Tool = {
   },
 };
 
-// Type definitions
-interface BatchScrapeOptions {
-  urls: string[];
-  options?: Omit<ScrapeParams, 'url'>;
-}
-
 /**
  * Parameters for LLMs.txt generation operations.
  */
@@ -640,6 +570,9 @@ interface SearchOptions {
     formats?: string[];
     onlyMainContent?: boolean;
     waitFor?: number;
+    includeTags?: string[];
+    excludeTags?: string[];
+    timeout?: number;
   };
 }
 
@@ -703,16 +636,6 @@ function isCrawlOptions(args: unknown): args is CrawlParams & { url: string } {
   );
 }
 
-function isBatchScrapeOptions(args: unknown): args is BatchScrapeOptions {
-  return (
-    typeof args === 'object' &&
-    args !== null &&
-    'urls' in args &&
-    Array.isArray((args as { urls: unknown }).urls) &&
-    (args as { urls: unknown[] }).urls.every((url) => typeof url === 'string')
-  );
-}
-
 function isStatusCheckOptions(args: unknown): args is StatusCheckOptions {
   return (
     typeof args === 'object' &&
@@ -770,18 +693,18 @@ const FIRECRAWL_API_URL = process.env.FIRECRAWL_API_URL;
 const FIRECRAWL_API_KEY = process.env.FIRECRAWL_API_KEY;
 
 // Check if API key is required (only for cloud service)
-if (!FIRECRAWL_API_URL && !FIRECRAWL_API_KEY) {
+if (
+  process.env.CLOUD_SERVICE !== 'true' &&
+  !FIRECRAWL_API_URL &&
+  !FIRECRAWL_API_KEY
+) {
   console.error(
     'Error: FIRECRAWL_API_KEY environment variable is required when using the cloud service'
   );
   process.exit(1);
 }
 
-// Initialize FireCrawl client with optional API URL
-const client = new FirecrawlApp({
-  apiKey: FIRECRAWL_API_KEY || '',
-  ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
-});
+// Initialize Firecrawl client with optional API URL
 
 // Configuration for retries and monitoring
 const CONFIG = {
@@ -797,17 +720,6 @@ const CONFIG = {
     criticalThreshold:
       Number(process.env.FIRECRAWL_CREDIT_CRITICAL_THRESHOLD) || 100,
   },
-};
-
-// Add credit tracking
-interface CreditUsage {
-  total: number;
-  lastCheck: number;
-}
-
-const creditUsage: CreditUsage = {
-  total: 0,
-  lastCheck: Date.now(),
 };
 
 // Add utility function for delay
@@ -873,93 +785,12 @@ async function withRetry<T>(
   }
 }
 
-// Add credit monitoring
-async function updateCreditUsage(creditsUsed: number): Promise<void> {
-  creditUsage.total += creditsUsed;
-
-  // Log credit usage
-  safeLog('info', `Credit usage: ${creditUsage.total} credits used total`);
-
-  // Check thresholds
-  if (creditUsage.total >= CONFIG.credit.criticalThreshold) {
-    safeLog('error', `CRITICAL: Credit usage has reached ${creditUsage.total}`);
-  } else if (creditUsage.total >= CONFIG.credit.warningThreshold) {
-    safeLog(
-      'warning',
-      `WARNING: Credit usage has reached ${creditUsage.total}`
-    );
-  }
-}
-
-// Add before server implementation
-interface QueuedBatchOperation {
-  id: string;
-  urls: string[];
-  options?: any;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  progress: {
-    completed: number;
-    total: number;
-  };
-  result?: any;
-  error?: string;
-}
-
-// Initialize queue system
-const batchQueue = new PQueue({ concurrency: 1 });
-const batchOperations = new Map<string, QueuedBatchOperation>();
-let operationCounter = 0;
-
-async function processBatchOperation(
-  operation: QueuedBatchOperation
-): Promise<void> {
-  try {
-    operation.status = 'processing';
-    let totalCreditsUsed = 0;
-
-    // Use library's built-in batch processing
-    const response = await withRetry(
-      async () =>
-        client.asyncBatchScrapeUrls(operation.urls, operation.options),
-      `batch ${operation.id} processing`
-    );
-
-    if (!response.success) {
-      throw new Error(response.error || 'Batch operation failed');
-    }
-
-    // Track credits if using cloud API
-    if (!FIRECRAWL_API_URL && hasCredits(response)) {
-      totalCreditsUsed += response.creditsUsed;
-      await updateCreditUsage(response.creditsUsed);
-    }
-
-    operation.status = 'completed';
-    operation.result = response;
-
-    // Log final credit usage for the batch
-    if (!FIRECRAWL_API_URL) {
-      safeLog(
-        'info',
-        `Batch ${operation.id} completed. Total credits used: ${totalCreditsUsed}`
-      );
-    }
-  } catch (error) {
-    operation.status = 'failed';
-    operation.error = error instanceof Error ? error.message : String(error);
-
-    safeLog('error', `Batch ${operation.id} failed: ${operation.error}`);
-  }
-}
-
 // Tool handlers
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     SCRAPE_TOOL,
     MAP_TOOL,
     CRAWL_TOOL,
-    BATCH_SCRAPE_TOOL,
-    CHECK_BATCH_STATUS_TOOL,
     CHECK_CRAWL_STATUS_TOOL,
     SEARCH_TOOL,
     EXTRACT_TOOL,
@@ -973,6 +804,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     const { name, arguments: args } = request.params;
 
+    const apiKey = process.env.CLOUD_SERVICE
+      ? (request.params._meta?.apiKey as string)
+      : FIRECRAWL_API_KEY;
+    if (process.env.CLOUD_SERVICE && !apiKey) {
+      throw new Error('No API key provided');
+    }
+
+    const client = new FirecrawlApp({
+      apiKey,
+      ...(FIRECRAWL_API_URL ? { apiUrl: FIRECRAWL_API_URL } : {}),
+    });
     // Log incoming request with timestamp
     safeLog(
       'info',
@@ -996,8 +838,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             `Starting scrape for URL: ${url} with options: ${JSON.stringify(options)}`
           );
 
-          //@ts-ignore
-          const response = await client.scrapeUrl(url, { ...options, origin: 'mcp-server' });
+          const response = await client.scrapeUrl(url, {
+            ...options,
+            // @ts-expect-error Extended API options including origin
+            origin: 'mcp-server',
+          });
 
           // Log performance metrics
           safeLog(
@@ -1067,105 +912,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           throw new Error('Invalid arguments for firecrawl_map');
         }
         const { url, ...options } = args;
-        //@ts-ignore
-        const response = await client.mapUrl(url, { ...options, origin: 'mcp-server' });
+        const response = await client.mapUrl(url, {
+          ...options,
+          // @ts-expect-error Extended API options including origin
+          origin: 'mcp-server',
+        });
         if ('error' in response) {
           throw new Error(response.error);
         }
         if (!response.links) {
-          throw new Error('No links received from FireCrawl API');
+          throw new Error('No links received from Firecrawl API');
         }
         return {
           content: [
             { type: 'text', text: trimResponseText(response.links.join('\n')) },
           ],
-          isError: false,
-        };
-      }
-
-      case 'firecrawl_batch_scrape': {
-        if (!isBatchScrapeOptions(args)) {
-          throw new Error('Invalid arguments for firecrawl_batch_scrape');
-        }
-
-        try {
-          const operationId = `batch_${++operationCounter}`;
-          const operation: QueuedBatchOperation = {
-            id: operationId,
-            urls: args.urls,
-            options: args.options,
-            status: 'pending',
-            progress: {
-              completed: 0,
-              total: args.urls.length,
-            },
-          };
-
-          batchOperations.set(operationId, operation);
-
-          // Queue the operation
-          batchQueue.add(() => processBatchOperation(operation));
-
-          safeLog(
-            'info',
-            `Queued batch operation ${operationId} with ${args.urls.length} URLs`
-          );
-
-          return {
-            content: [
-              {
-                type: 'text',
-                text: trimResponseText(
-                  `Batch operation queued with ID: ${operationId}. Use firecrawl_check_batch_status to check progress.`
-                ),
-              },
-            ],
-            isError: false,
-          };
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error
-              ? error.message
-              : `Batch operation failed: ${JSON.stringify(error)}`;
-          return {
-            content: [{ type: 'text', text: trimResponseText(errorMessage) }],
-            isError: true,
-          };
-        }
-      }
-
-      case 'firecrawl_check_batch_status': {
-        if (!isStatusCheckOptions(args)) {
-          throw new Error('Invalid arguments for firecrawl_check_batch_status');
-        }
-
-        const operation = batchOperations.get(args.id);
-        if (!operation) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: trimResponseText(
-                  `No batch operation found with ID: ${args.id}`
-                ),
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const status = `Batch Status:
-Status: ${operation.status}
-Progress: ${operation.progress.completed}/${operation.progress.total}
-${operation.error ? `Error: ${operation.error}` : ''}
-${
-  operation.result
-    ? `Results: ${JSON.stringify(operation.result, null, 2)}`
-    : ''
-}`;
-
-        return {
-          content: [{ type: 'text', text: trimResponseText(status) }],
           isError: false,
         };
       }
@@ -1176,18 +937,14 @@ ${
         }
         const { url, ...options } = args;
         const response = await withRetry(
-          //@ts-ignore
-          async () => client.asyncCrawlUrl(url, { ...options, origin: 'mcp-server' }),
+          async () =>
+            // @ts-expect-error Extended API options including origin
+            client.asyncCrawlUrl(url, { ...options, origin: 'mcp-server' }),
           'crawl operation'
         );
 
         if (!response.success) {
           throw new Error(response.error);
-        }
-
-        // Monitor credits for cloud API
-        if (!FIRECRAWL_API_URL && hasCredits(response)) {
-          await updateCreditUsage(response.creditsUsed);
         }
 
         return {
@@ -1231,7 +988,8 @@ ${
         }
         try {
           const response = await withRetry(
-            async () => client.search(args.query, { ...args, origin: 'mcp-server' }),
+            async () =>
+              client.search(args.query, { ...args, origin: 'mcp-server' }),
             'search operation'
           );
 
@@ -1239,11 +997,6 @@ ${
             throw new Error(
               `Search failed: ${response.error || 'Unknown error'}`
             );
-          }
-
-          // Monitor credits for cloud API
-          if (!FIRECRAWL_API_URL && hasCredits(response)) {
-            await updateCreditUsage(response.creditsUsed);
           }
 
           // Format the results
@@ -1311,11 +1064,6 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
           }
 
           const response = extractResponse as ExtractResponse;
-
-          // Monitor credits for cloud API
-          if (!FIRECRAWL_API_URL && hasCredits(response)) {
-            await updateCreditUsage(response.creditsUsed || 0);
-          }
 
           // Log performance metrics
           safeLog(
@@ -1387,7 +1135,7 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
               maxDepth: args.maxDepth as number,
               timeLimit: args.timeLimit as number,
               maxUrls: args.maxUrls as number,
-              //@ts-ignore
+              // @ts-expect-error Extended API options including origin
               origin: 'mcp-server',
             },
             // Activity callback
@@ -1455,8 +1203,9 @@ ${result.markdown ? `\nContent:\n${result.markdown}` : ''}`
 
           // Start the generation process
           const response = await withRetry(
-            //@ts-ignore
-            async () => client.generateLLMsText(url, { ...params, origin: 'mcp-server' }),
+            async () =>
+              // @ts-expect-error Extended API options including origin
+              client.generateLLMsText(url, { ...params, origin: 'mcp-server' }),
             'LLMs.txt generation'
           );
 
@@ -1543,11 +1292,6 @@ ${doc.metadata?.title ? `Title: ${doc.metadata.title}` : ''}`;
     .join('\n\n');
 }
 
-// Add type guard for credit usage
-function hasCredits(response: any): response is { creditsUsed: number } {
-  return 'creditsUsed' in response && typeof response.creditsUsed === 'number';
-}
-
 // Utility function to trim trailing whitespace from text responses
 // This prevents Claude API errors with "final assistant content cannot end with trailing whitespace"
 function trimResponseText(text: string): string {
@@ -1555,9 +1299,9 @@ function trimResponseText(text: string): string {
 }
 
 // Server startup
-async function runServer() {
+async function runLocalServer() {
   try {
-    console.error('Initializing FireCrawl MCP Server...');
+    console.error('Initializing Firecrawl MCP Server...');
 
     const transport = new StdioServerTransport();
 
@@ -1572,20 +1316,128 @@ async function runServer() {
     await server.connect(transport);
 
     // Now that we're connected, we can send logging messages
-    safeLog('info', 'FireCrawl MCP Server initialized successfully');
+    safeLog('info', 'Firecrawl MCP Server initialized successfully');
     safeLog(
       'info',
       `Configuration: API URL: ${FIRECRAWL_API_URL || 'default'}`
     );
 
-    console.error('FireCrawl MCP Server running on stdio');
+    console.error('Firecrawl MCP Server running on stdio');
   } catch (error) {
     console.error('Fatal error running server:', error);
     process.exit(1);
   }
 }
+async function runSSELocalServer() {
+  let transport: SSEServerTransport | null = null;
+  const app = express();
 
-runServer().catch((error: any) => {
-  console.error('Fatal error running server:', error);
-  process.exit(1);
-});
+  app.get('/sse', async (req, res) => {
+    transport = new SSEServerTransport(`/messages`, res);
+    res.on('close', () => {
+      transport = null;
+    });
+    await server.connect(transport);
+  });
+
+  // Endpoint for the client to POST messages
+  // Remove express.json() middleware - let the transport handle the body
+  app.post('/messages', (req, res) => {
+    if (transport) {
+      transport.handlePostMessage(req, res);
+    }
+  });
+
+  const PORT = process.env.PORT || 3000;
+  console.log('Starting server on port', PORT);
+  try {
+    app.listen(PORT, () => {
+      console.log(`MCP SSE Server listening on http://localhost:${PORT}`);
+      console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+      console.log(`Message endpoint: http://localhost:${PORT}/messages`);
+    });
+  } catch (error) {
+    console.error('Error starting server:', error);
+  }
+}
+
+async function runSSECloudServer() {
+  const transports: { [sessionId: string]: SSEServerTransport } = {};
+  const app = express();
+
+  app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+  });
+
+  app.get('/:apiKey/sse', async (req, res) => {
+    const apiKey = req.params.apiKey;
+    const transport = new SSEServerTransport(`/${apiKey}/messages`, res);
+
+    //todo: validate api key, close if invalid
+    const compositeKey = `${apiKey}-${transport.sessionId}`;
+    transports[compositeKey] = transport;
+    res.on('close', () => {
+      delete transports[compositeKey];
+    });
+    await server.connect(transport);
+  });
+
+  // Endpoint for the client to POST messages
+  // Remove express.json() middleware - let the transport handle the body
+  app.post(
+    '/:apiKey/messages',
+    express.json(),
+    async (req: Request, res: Response) => {
+      const apiKey = req.params.apiKey;
+      const body = req.body;
+      const enrichedBody = {
+        ...body,
+      };
+
+      if (enrichedBody && enrichedBody.params && !enrichedBody.params._meta) {
+        enrichedBody.params._meta = { apiKey };
+      } else if (
+        enrichedBody &&
+        enrichedBody.params &&
+        enrichedBody.params._meta
+      ) {
+        enrichedBody.params._meta.apiKey = apiKey;
+      }
+
+      console.log('enrichedBody', enrichedBody);
+
+      const sessionId = req.query.sessionId as string;
+      const compositeKey = `${apiKey}-${sessionId}`;
+      const transport = transports[compositeKey];
+      if (transport) {
+        await transport.handlePostMessage(req, res, enrichedBody);
+      } else {
+        res.status(400).send('No transport found for sessionId');
+      }
+    }
+  );
+
+  const PORT = 3000;
+  app.listen(PORT, () => {
+    console.log(`MCP SSE Server listening on http://localhost:${PORT}`);
+    console.log(`SSE endpoint: http://localhost:${PORT}/sse`);
+    console.log(`Message endpoint: http://localhost:${PORT}/messages`);
+  });
+}
+
+if (process.env.CLOUD_SERVICE === 'true') {
+  runSSECloudServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+} else if (process.env.SSE_LOCAL === 'true') {
+  runSSELocalServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+} else {
+  runLocalServer().catch((error: any) => {
+    console.error('Fatal error running server:', error);
+    process.exit(1);
+  });
+}
