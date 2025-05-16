@@ -1375,6 +1375,8 @@ async function runSSECloudServer() {
 
     //todo: validate api key, close if invalid
     const compositeKey = `${apiKey}-${transport.sessionId}`;
+    console.log('transport.sessionId', transport.sessionId);
+    console.log('compositeKey', compositeKey);
     transports[compositeKey] = transport;
     res.on('close', () => {
       delete transports[compositeKey];
@@ -1407,7 +1409,9 @@ async function runSSECloudServer() {
       console.log('enrichedBody', enrichedBody);
 
       const sessionId = req.query.sessionId as string;
+      console.log('sessionId', sessionId);
       const compositeKey = `${apiKey}-${sessionId}`;
+      console.log('compositeKey', compositeKey);
       const transport = transports[compositeKey];
       if (transport) {
         await transport.handlePostMessage(req, res, enrichedBody);
