@@ -5,9 +5,6 @@ A Model Context Protocol (MCP) server implementation that integrates with [Firec
 > Big thanks to [@vrknetha](https://github.com/vrknetha), [@knacklabs](https://www.knacklabs.ai) for the initial implementation!
 
 
-
-
-
 ## Features
 
 - Web scraping, crawling, and discovery
@@ -34,10 +31,6 @@ npm install -g firecrawl-mcp
 ```
 
 ### Running on Cursor
-
-[![Install MCP Server](https://cursor.com/deeplink/mcp-install-dark.png)](cursor://anysphere.cursor-deeplink/mcp/install?name=firecrawl&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsImZpcmVjcmF3bC1tY3AiXSwiZW52Ijp7IkZJUkVDUkFXTF9BUElfS0VZIjoiWU9VUi1BUEktS0VZIn19)
-
-#### Manual Installation
 
 Configuring Cursor 🖥️
 Note: Requires Cursor version 0.45.6+
