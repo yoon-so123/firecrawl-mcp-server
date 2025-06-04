@@ -7,7 +7,7 @@ A Model Context Protocol (MCP) server implementation that integrates with [Firec
 
 
 <a href="cursor://anysphere.cursor-deeplink/mcp/install?name=firecrawl&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsImZpcmVjcmF3bC1tY3AiXSwiZW52Ijp7IkZJUkVDUkFXTF9BUElfS0VZIjoiWU9VUi1BUEktS0VZIn19">
-  <img src="https://cursor.com/deeplink/mcp-install-dark.png" alt="Install MCP Server" height="100"/>
+  <img src="https://cursor.com/deeplink/mcp-install-dark.png" alt="Install MCP Server" height="32"/>
 </a>
 
 
